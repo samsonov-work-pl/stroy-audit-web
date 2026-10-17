@@ -1,5 +1,5 @@
 import type { IconType } from 'react-icons'
-import { FaInstagram, FaLinkedinIn, FaTelegram, FaVk } from 'react-icons/fa6'
+import { FaInstagram, FaLinkedinIn, FaTelegram } from 'react-icons/fa6'
 import { SiGmail } from 'react-icons/si'
 import { ArrowUpRight } from 'lucide-react'
 import { Reveal } from '@/components/reveal'
@@ -25,12 +25,6 @@ const contacts: { name: string; handle: string; href: string; icon: IconType }[]
     icon: FaInstagram,
   },
   {
-    name: 'ВКонтакте',
-    handle: 'vk.com/stroyaudit_ai',
-    href: 'https://vk.com/stroyaudit_ai',
-    icon: FaVk,
-  },
-  {
     name: 'Telegram',
     handle: '@stroyaudit_ai',
     href: 'https://t.me/stroyaudit_ai',
@@ -49,7 +43,7 @@ export function Contacts() {
           </p>
         </div>
 
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {contacts.map((contact, i) => {
             const Icon = contact.icon
             const isEmail = contact.href.startsWith('mailto:')
