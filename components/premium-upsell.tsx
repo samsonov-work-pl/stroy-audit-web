@@ -141,13 +141,9 @@ export type DeepAuditRequest = {
 
 type DeepState =
   | { kind: 'idle' }
-  | { kind: 'waiting' }
   | { kind: 'submitting' }
   | { kind: 'error'; message: string }
   | ({ kind: 'done' } & DeepResult)
-
-const PAYMENT_POLL_MS = 4_000
-const PAYMENT_POLL_LIMIT_MS = 15 * 60 * 1000
 
 function pickString(data: unknown, keys: string[]) {
   if (!data || typeof data !== 'object') return null
@@ -158,11 +154,18 @@ function pickString(data: unknown, keys: string[]) {
   return null
 }
 
-async function fetchPaid(email: string) {
-  const res = await fetch(`/api/payments/status?email=${encodeURIComponent(email)}`)
-  if (!res.ok) return false
-  const data = (await res.json().catch(() => ({}))) as { paid?: boolean }
-  return data.paid === true
+function paymentJustSucceeded() {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('payment') === 'success' || params.get('status') === 'success'
+}
+
+function clearPaymentSuccess() {
+  const url = new URL(window.location.href)
+  url.searchParams.delete('payment')
+  if (url.searchParams.get('status') === 'success') url.searchParams.delete('status')
+  url.searchParams.delete('invoiceId')
+  const query = url.searchParams.toString()
+  window.history.replaceState(null, '', url.pathname + (query ? `?${query}` : '') + url.hash)
 }
 
 function isHttpUrl(value: string) {
@@ -206,10 +209,12 @@ function configuredCheckout(jurisdiction: Jurisdiction) {
   return LAVA_FULL_CHECKOUT
 }
 
-function withBuyerEmail(url: string, email: string) {
-  if (!email || !isLavaCheckout(url)) return url
+function withCheckoutParams(url: string, email: string) {
   const target = new URL(url)
-  if (!target.searchParams.has('email')) target.searchParams.set('email', email)
+  if (email && isLavaCheckout(url)) target.searchParams.set('email', email)
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    target.searchParams.set('successful_return_url', `${window.location.origin}/?payment=success`)
+  }
   return target.toString()
 }
 
@@ -238,7 +243,7 @@ export function PremiumUpsell({
   const price = DEEP_PRICE[request.jurisdiction]
   const checkoutHref = (() => {
     const url = configuredCheckout(request.jurisdiction)
-    return url ? withBuyerEmail(url, request.email) : null
+    return url ? withCheckoutParams(url, request.email) : null
   })()
   const generating = useRef(false)
   const delivered = useRef(Boolean(initialDeep))
@@ -290,15 +295,6 @@ export function PremiumUpsell({
         return
       }
       const chatUrl = report ? (await createChatLink(report, current.jurisdiction, current.email)).url : null
-      if (report) {
-        showReportInWindow(null, {
-          markdown: report,
-          standards: getJurisdiction(current.jurisdiction).standards,
-          chatUrl,
-        })
-      } else if (pdfUrl) {
-        window.open(pdfUrl, '_blank', 'noopener,noreferrer')
-      }
       delivered.current = true
       onFullReportRef.current({ pdfUrl, report, chatUrl })
       setState({ kind: 'done', pdfUrl, report, chatUrl })
@@ -309,45 +305,16 @@ export function PremiumUpsell({
   }, [consentVersion, deepUrl])
 
   useEffect(() => {
-    if (initialDeep || !request.file || !request.email) return
-    let cancelled = false
-    fetchPaid(request.email).then((paid) => {
-      if (!cancelled && paid) void generateFullReport()
-    })
-    return () => {
-      cancelled = true
+    if (!paymentJustSucceeded()) return
+    if (initialDeep || delivered.current) {
+      clearPaymentSuccess()
+      return
     }
-  }, [initialDeep, request.file, request.email, generateFullReport])
-
-  useEffect(() => {
-    if (state.kind !== 'waiting') return
-    let cancelled = false
-    const started = Date.now()
-    let timer = 0
-    async function tick() {
-      if (cancelled) return
-      const paid = await fetchPaid(requestRef.current.email).catch(() => false)
-      if (cancelled) return
-      if (paid) {
-        void generateFullReport()
-        return
-      }
-      if (Date.now() - started >= PAYMENT_POLL_LIMIT_MS) {
-        setState({
-          kind: 'error',
-          message: 'Оплата пока не подтвердилась. Если вы уже оплатили, обновите страницу через минуту — отчёт запустится сам.',
-        })
-        setOpen(true)
-        return
-      }
-      timer = window.setTimeout(() => void tick(), PAYMENT_POLL_MS)
-    }
-    void tick()
-    return () => {
-      cancelled = true
-      window.clearTimeout(timer)
-    }
-  }, [state.kind, generateFullReport])
+    if (!request.file) return
+    clearPaymentSuccess()
+    document.getElementById('audit-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    void generateFullReport()
+  }, [initialDeep, request.file, generateFullReport])
 
   function handleChatCreated(chatUrl: string) {
     if (state.kind !== 'done') return
@@ -356,22 +323,22 @@ export function PremiumUpsell({
     setState({ kind: 'done', ...next })
   }
 
-  function startPayment() {
-    setState({ kind: 'waiting' })
-    setOpen(true)
-  }
-
-  async function resumeAfterPayment() {
-    const paid = await fetchPaid(request.email).catch(() => false)
-    if (!paid) {
-      setState({
-        kind: 'error',
-        message: 'Оплата ещё не подтверждена. Завершите её на Lava.top — отчёт начнётся сразу после подтверждения.',
+  async function startPayment(event: { preventDefault: () => void }) {
+    event.preventDefault()
+    const fallback = checkoutHref
+    try {
+      const res = await fetch('/api/payments/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: request.email, jurisdiction: request.jurisdiction }),
       })
-      setOpen(true)
-      return
-    }
-    void generateFullReport()
+      const data = (await res.json().catch(() => ({}))) as { paymentUrl?: string }
+      if (data.paymentUrl?.startsWith('https://')) {
+        window.location.assign(data.paymentUrl)
+        return
+      }
+    } catch {}
+    if (fallback) window.location.assign(fallback)
   }
 
   return (
@@ -380,7 +347,7 @@ export function PremiumUpsell({
         <div className="flex flex-col gap-3 rounded-xl border border-border bg-background p-4">
           <p className="flex items-center gap-2 text-sm font-semibold">
             <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden="true" />
-            Подробный аудит готов — открыт в новой вкладке
+            Подробный аудит готов
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start">
             <OpenReportButton pdfUrl={state.pdfUrl} report={state.report} chatUrl={state.chatUrl} jurisdiction={request.jurisdiction} label="Открыть отчёт (PDF)" />
@@ -393,23 +360,14 @@ export function PremiumUpsell({
             />
           </div>
         </div>
-      ) : state.kind === 'waiting' || state.kind === 'submitting' ? (
+      ) : state.kind === 'submitting' ? (
         <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-5" role="status">
           <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin" aria-hidden="true" />
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-semibold">
-              {state.kind === 'waiting' ? 'Ждём подтверждение оплаты' : 'Оплата подтверждена. Формируем полный отчёт'}
-            </p>
+            <p className="text-sm font-semibold">Оплата подтверждена. Формируем полный отчёт</p>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              {state.kind === 'waiting'
-                ? 'Завершите оплату во вкладке Lava.top. Как только она подтвердится, полный отчёт начнётся сам и откроется на этой странице.'
-                : 'Это может занять несколько минут. Не закрывайте страницу — готовый отчёт появится здесь и в новой вкладке.'}
+              Это может занять несколько минут. Не закрывайте страницу — готовый отчёт появится здесь.
             </p>
-            {state.kind === 'waiting' && checkoutHref ? (
-              <a href={checkoutHref} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold underline underline-offset-4">
-                Открыть оплату ещё раз
-              </a>
-            ) : null}
           </div>
         </div>
       ) : (
@@ -438,8 +396,6 @@ export function PremiumUpsell({
           {checkoutHref ? (
             <a
               href={checkoutHref}
-              target="_blank"
-              rel="noopener noreferrer"
               onClick={startPayment}
               className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-background px-5 text-sm font-semibold text-foreground transition-all hover:bg-background/90 active:scale-[0.99]"
             >
@@ -471,7 +427,7 @@ export function PremiumUpsell({
         state={state}
         checkoutHref={checkoutHref}
         onPay={startPayment}
-        onRetry={() => void resumeAfterPayment()}
+        onRetry={() => void generateFullReport()}
         onChatCreated={handleChatCreated}
       />
     </>
@@ -554,8 +510,8 @@ function DeepAuditDialog({
               Подробный аудит готов
             </p>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              Отчёт открыт в новой вкладке — там его можно сохранить в PDF. Если вкладка не появилась,
-              нажмите кнопку ниже. Отчёт для <span className="font-medium text-foreground">{email}</span>.
+              Отчёт на этой странице. Его можно открыть отдельно и сохранить в PDF. Отчёт для{' '}
+              <span className="font-medium text-foreground">{email}</span>.
             </p>
             <p className="text-xs leading-relaxed text-muted-foreground">
               Остались вопросы по замечаниям? Обсудите их в чате по вашему отчёту: ассистент знает ваш отчёт
@@ -570,13 +526,11 @@ function DeepAuditDialog({
               onCreated={onChatCreated}
             />
           </div>
-        ) : state.kind === 'waiting' || state.kind === 'submitting' ? (
+        ) : state.kind === 'submitting' ? (
           <div className="flex items-start gap-3 rounded-lg border border-border bg-background p-4" role="status">
             <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin" aria-hidden="true" />
             <p className="text-sm leading-relaxed">
-              {state.kind === 'waiting'
-                ? 'Ждём подтверждение оплаты. После него полный отчёт сформируется и откроется автоматически.'
-                : 'Оплата подтверждена. Формируем полный отчёт — это может занять несколько минут.'}
+              Оплата подтверждена. Формируем полный отчёт — это может занять несколько минут.
             </p>
           </div>
         ) : (
@@ -614,18 +568,12 @@ function DeepAuditDialog({
           </button>
           {state.kind === 'error' && (
             <button type="button" onClick={onRetry} className={PAY_BUTTON_CLASS}>
-              Проверить оплату и сформировать отчёт
+              Сформировать отчёт
             </button>
           )}
           {state.kind !== 'done' && state.kind !== 'submitting' && checkoutHref && (
-            <a
-              href={checkoutHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={onPay}
-              className={PAY_BUTTON_CLASS}
-            >
-              {state.kind === 'waiting' ? 'Открыть оплату ещё раз' : `Оплатить ${price}`}
+            <a href={checkoutHref} onClick={onPay} className={PAY_BUTTON_CLASS}>
+              {`Оплатить ${price}`}
             </a>
           )}
           {state.kind === 'submitting' && (

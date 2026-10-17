@@ -126,18 +126,27 @@ export function UploadCard() {
   const pickerRef = useRef<HTMLFieldSetElement>(null)
   const cooldown = useSubmitCooldown(SUBMIT_COOLDOWN_MS)
   const [floodWarning, setFloodWarning] = useState(false)
+  const [missingPaidProject, setMissingPaidProject] = useState(false)
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const paidReturn = params.get('payment') === 'success' || params.get('status') === 'success'
     const stored = loadStoredAudit()
-    if (!stored) return
+    if (!stored) {
+      if (paidReturn) setMissingPaidProject(true)
+      return
+    }
     let cancelled = false
     const restored: AuditResult = { ok: true, ...stored, file: null }
     setResult(restored)
     setStatus('success')
     loadStoredFile().then((storedFile) => {
-      if (!cancelled && storedFile) {
+      if (cancelled) return
+      if (storedFile) {
         setResult((current) => (current === restored ? { ...restored, file: storedFile } : current))
+        return
       }
+      if (paidReturn) setMissingPaidProject(true)
     })
     return () => {
       cancelled = true
@@ -295,6 +304,12 @@ export function UploadCard() {
 
   return (
     <div className="flex flex-col gap-4">
+      {missingPaidProject && (
+        <p role="status" className="rounded-xl border border-border bg-card px-4 py-3 text-sm">
+          Оплата прошла, но файл проекта в этом браузере не найден. Загрузите его ещё раз — полный отчёт запустится сразу.
+        </p>
+      )}
+
       <form
         id="upload"
         onSubmit={handleSubmit}
@@ -561,6 +576,7 @@ function AuditResponse({ result, onReset }: { result: AuditResult; onReset: () =
 
   return (
     <section
+      id="audit-result"
       aria-live="polite"
       className={cn(
         cardClass,
