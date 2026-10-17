@@ -32,6 +32,8 @@ REVOKE_EVENTS = {
     "subscription.cancelled",
 }
 PAID_PLANS = ("full", "developers")
+# Публичный продукт «Полный аудит». Учитывается даже без LAVA_PRODUCT_FULL.
+KNOWN_FULL_PRODUCTS = {"46156488-439c-4f84-86b9-7628f5a6e93e"}
 
 PLAN_LABELS = {
     "express": "Экспресс",
@@ -161,7 +163,7 @@ def resolve_plan(payload: dict[str, Any], data: dict[str, Any]) -> str | None:
     ).lower()
 
     mapping = (
-        ("full", csv_ids("LAVA_OFFER_FULL") | csv_ids("LAVA_PRODUCT_FULL")),
+        ("full", csv_ids("LAVA_OFFER_FULL") | csv_ids("LAVA_PRODUCT_FULL") | KNOWN_FULL_PRODUCTS),
         ("developers", csv_ids("LAVA_OFFER_DEVELOPERS") | csv_ids("LAVA_PRODUCT_DEVELOPERS")),
         ("express", csv_ids("LAVA_OFFER_EXPRESS") | csv_ids("LAVA_PRODUCT_EXPRESS")),
     )

@@ -1,14 +1,10 @@
 import { createProject, isChatTestMode, MAX_REPORT_CHARS } from '@/lib/chat-project'
+import { emailHasPaidFullAudit } from '@/lib/payment-status'
 
 const JURISDICTIONS = new Set(['russia', 'belarus', 'kazakhstan', 'eurocodes'])
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export async function POST(req: Request) {
-  // Payment confirmation (lava.top webhook) will create paid projects server-side; this route is test-only.
-  if (!isChatTestMode()) {
-    return Response.json({ error: 'Чат доступен после подтверждения оплаты.' }, { status: 403 })
-  }
-
   let body: unknown
   try {
     body = await req.json()
@@ -24,7 +20,11 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Некорректная юрисдикция.' }, { status: 400 })
   }
   const safeEmail = typeof email === 'string' && EMAIL_PATTERN.test(email) && email.length <= 254 ? email : null
+  const paid = await emailHasPaidFullAudit(safeEmail)
+  if (!isChatTestMode() && !paid) {
+    return Response.json({ error: 'Чат доступен после подтверждения оплаты.' }, { status: 403 })
+  }
 
-  const token = await createProject({ report, jurisdiction, email: safeEmail, paid: true })
+  const token = await createProject({ report, jurisdiction, email: safeEmail, paid: paid || isChatTestMode() })
   return Response.json({ token })
 }
