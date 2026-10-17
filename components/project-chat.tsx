@@ -22,10 +22,14 @@ export function ProjectChat({
   token,
   initialMessages,
   remaining: initialRemaining,
+  report,
+  jurisdiction,
 }: {
   token: string
   initialMessages: UIMessage[]
   remaining: number
+  report?: string
+  jurisdiction?: string
 }) {
   const [input, setInput] = useState('')
   const [remaining, setRemaining] = useState(initialRemaining)
@@ -36,7 +40,11 @@ export function ProjectChat({
     transport: new DefaultChatTransport({
       api: '/api/chat',
       prepareSendMessagesRequest: ({ messages }) => ({
-        body: { token, message: messages[messages.length - 1] },
+        body: {
+          token,
+          message: messages[messages.length - 1],
+          ...(report ? { report, jurisdiction, history: messages.slice(0, -1).slice(-40) } : {}),
+        },
       }),
     }),
   })
@@ -174,5 +182,45 @@ export function ProjectChat({
         </form>
       </div>
     </main>
+  )
+}
+
+export function BrowserProjectChat({ token }: { token: string }) {
+  const [session, setSession] = useState<{ report: string; jurisdiction: string } | null | undefined>(undefined)
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`stroyaudit-chat:${token}`)
+      const data = raw ? (JSON.parse(raw) as { report?: unknown; jurisdiction?: unknown }) : null
+      if (data && typeof data.report === 'string' && typeof data.jurisdiction === 'string') {
+        setSession({ report: data.report, jurisdiction: data.jurisdiction })
+        return
+      }
+    } catch {}
+    setSession(null)
+  }, [token])
+
+  if (session === undefined) {
+    return (
+      <p className="px-5 py-8 text-sm text-muted-foreground" role="status">
+        Открываем чат…
+      </p>
+    )
+  }
+  if (!session) {
+    return (
+      <p className="px-5 py-8 text-sm text-muted-foreground">
+        Сессия чата не найдена. Вернитесь к отчёту и откройте чат ещё раз.
+      </p>
+    )
+  }
+  return (
+    <ProjectChat
+      token={token}
+      initialMessages={[]}
+      remaining={60}
+      report={session.report}
+      jurisdiction={session.jurisdiction}
+    />
   )
 }

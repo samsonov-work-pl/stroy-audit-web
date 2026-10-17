@@ -1,8 +1,7 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
 
 import { getJurisdiction, type Jurisdiction } from '@/components/jurisdiction-provider'
-import { ProjectChat } from '@/components/project-chat'
+import { BrowserProjectChat, ProjectChat } from '@/components/project-chat'
 import { Logo } from '@/components/site-header'
 import { findPaidProject, loadMessages, MAX_USER_MESSAGES } from '@/lib/chat-project'
 
@@ -13,8 +12,19 @@ export const metadata: Metadata = {
 
 export default async function ChatPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
-  const project = await findPaidProject(token)
-  if (!project) notFound()
+  const project = await findPaidProject(token).catch(() => null)
+  if (!project) {
+    return (
+      <div className="flex h-dvh flex-col bg-background">
+        <header className="shrink-0 border-b border-border/70 bg-background/75 backdrop-blur-xl">
+          <div className="mx-auto flex h-16 max-w-3xl items-center px-5">
+            <Logo />
+          </div>
+        </header>
+        <BrowserProjectChat token={token} />
+      </div>
+    )
+  }
 
   const messages = await loadMessages(project.id)
   const standards = getJurisdiction(project.jurisdiction as Jurisdiction).standards

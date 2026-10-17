@@ -20,6 +20,11 @@ export async function POST(req: Request) {
   }
   const safeEmail = typeof email === 'string' && EMAIL_PATTERN.test(email) && email.length <= 254 ? email : null
 
-  const token = await createProject({ report, jurisdiction, email: safeEmail, paid: true })
-  return Response.json({ token })
+  try {
+    const token = await createProject({ report, jurisdiction, email: safeEmail, paid: true })
+    return Response.json({ token })
+  } catch (error) {
+    console.error('[projects] database unavailable:', error)
+    return Response.json({ error: 'Не удалось создать сессию чата.' }, { status: 503 })
+  }
 }

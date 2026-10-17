@@ -2,12 +2,13 @@ import { convertToModelMessages, streamText, type UIMessage } from 'ai'
 
 import { getJurisdiction, type Jurisdiction } from '@/components/jurisdiction-provider'
 import { getChatModel } from '@/lib/llm'
-import { findPaidProject, loadMessages, reserveMessage, saveMessages } from '@/lib/chat-project'
+import { findPaidProject, loadMessages, MAX_REPORT_CHARS, reserveMessage, saveMessages } from '@/lib/chat-project'
 
 export const maxDuration = 60
 
 const MAX_INPUT_CHARS = 4000
 const HISTORY_LIMIT = 40
+const JURISDICTIONS = new Set(['russia', 'belarus', 'kazakhstan', 'eurocodes'])
 
 function buildSystemPrompt(report: string, jurisdiction: string) {
   const standards = getJurisdiction(jurisdiction as Jurisdiction).standards
@@ -34,6 +35,25 @@ function textLength(message: UIMessage) {
   return message.parts.reduce((sum, part) => sum + (part.type === 'text' ? part.text.length : 0), 0)
 }
 
+function sanitizeHistory(value: unknown) {
+  if (!Array.isArray(value)) return []
+  const messages: UIMessage[] = []
+  for (const item of value.slice(-HISTORY_LIMIT)) {
+    if (!item || typeof item !== 'object') continue
+    const record = item as { id?: unknown; role?: unknown; parts?: unknown }
+    if (record.role !== 'user' && record.role !== 'assistant') continue
+    if (!Array.isArray(record.parts)) continue
+    const message: UIMessage = {
+      id: typeof record.id === 'string' ? record.id.slice(0, 64) : crypto.randomUUID(),
+      role: record.role,
+      parts: record.parts.filter((part) => part && typeof part === 'object' && (part as { type?: unknown }).type === 'text') as UIMessage['parts'],
+    }
+    if (textLength(message) === 0 || textLength(message) > MAX_INPUT_CHARS) continue
+    messages.push(message)
+  }
+  return messages
+}
+
 export async function POST(req: Request) {
   let body: unknown
   try {
@@ -41,11 +61,19 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ error: 'Некорректный запрос.' }, { status: 400 })
   }
-  const { token, message } = (body ?? {}) as { token?: unknown; message?: UIMessage }
+  const { token, message, report, jurisdiction, history: rawHistory } = (body ?? {}) as {
+    token?: unknown
+    message?: UIMessage
+    report?: unknown
+    jurisdiction?: unknown
+    history?: unknown
+  }
 
   if (typeof token !== 'string') return Response.json({ error: 'Нет доступа.' }, { status: 401 })
-  const project = await findPaidProject(token)
-  if (!project) return Response.json({ error: 'Проект не найден или не оплачен.' }, { status: 404 })
+  const project = await findPaidProject(token).catch((error) => {
+    console.error('[chat] project lookup failed:', error)
+    return null
+  })
 
   if (!message || message.role !== 'user' || !Array.isArray(message.parts)) {
     return Response.json({ error: 'Некорректное сообщение.' }, { status: 400 })
@@ -60,16 +88,35 @@ export async function POST(req: Request) {
     return Response.json({ error: `Сообщение должно быть от 1 до ${MAX_INPUT_CHARS} символов.` }, { status: 400 })
   }
 
-  if (!(await reserveMessage(project.id))) {
-    return Response.json({ error: 'Лимит сообщений по этому проекту исчерпан.' }, { status: 429 })
+  let sessionReport = project?.report
+  let sessionJurisdiction = project?.jurisdiction
+  let history: UIMessage[] = []
+  if (project) {
+    if (!(await reserveMessage(project.id))) {
+      return Response.json({ error: 'Лимит сообщений по этому проекту исчерпан.' }, { status: 429 })
+    }
+    history = (await loadMessages(project.id)).slice(-HISTORY_LIMIT)
+  } else {
+    if (typeof report !== 'string' || report.trim().length < 50 || report.length > MAX_REPORT_CHARS) {
+      return Response.json({ error: 'Проект не найден или не оплачен.' }, { status: 404 })
+    }
+    if (typeof jurisdiction !== 'string' || !JURISDICTIONS.has(jurisdiction)) {
+      return Response.json({ error: 'Проект не найден или не оплачен.' }, { status: 404 })
+    }
+    sessionReport = report
+    sessionJurisdiction = jurisdiction
+    history = sanitizeHistory(rawHistory)
   }
 
-  const history = (await loadMessages(project.id)).slice(-HISTORY_LIMIT)
+  if (!sessionReport || !sessionJurisdiction) {
+    return Response.json({ error: 'Проект не найден или не оплачен.' }, { status: 404 })
+  }
+
   const messages = [...history, userMessage]
 
   const result = streamText({
     model: getChatModel(),
-    system: buildSystemPrompt(project.report, project.jurisdiction),
+    system: buildSystemPrompt(sessionReport, sessionJurisdiction),
     messages: await convertToModelMessages(messages),
   })
 
@@ -80,6 +127,7 @@ export async function POST(req: Request) {
       return 'Не удалось получить ответ ассистента.'
     },
     onEnd: async ({ messages: updated, isAborted }) => {
+      if (!project) return
       const fresh = updated.slice(history.length).filter((m) => m.role === 'user' || textLength(m) > 0)
       await saveMessages(project.id, isAborted ? fresh.filter((m) => m.role === 'user') : fresh)
     },

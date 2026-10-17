@@ -7,19 +7,74 @@ import { isRealPdfUrl, showReportInWindow } from '@/lib/report-pdf'
 
 type DeepResult = { pdfUrl: string | null; report: string | null; chatUrl?: string | null }
 
-async function createChatLink(report: string, jurisdiction: Jurisdiction, email: string) {
-  try {
-    const res = await fetch('/api/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ report, jurisdiction, email }),
-    })
-    const data = (await res.json().catch(() => ({}))) as { token?: string; error?: string }
-    if (!res.ok || !data.token) return { url: null, error: data.error ?? null }
-    return { url: `${window.location.origin}/chat/${data.token}`, error: null }
-  } catch {
-    return { url: null, error: null }
+const CHAT_API_URL = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, '') || ''
+const CHAT_SESSION_KEY = 'stroyaudit-chat:'
+
+function chatErrorMessage(data: unknown, status: number) {
+  if (data && typeof data === 'object') {
+    const record = data as Record<string, unknown>
+    for (const key of ['error', 'message', 'detail']) {
+      const value = record[key]
+      if (typeof value === 'string' && value.trim()) return value
+    }
   }
+  if (status === 404) return 'Сервер не принимает сессию чата.'
+  return `Не удалось открыть чат (HTTP ${status}).`
+}
+
+function chatSessionUrl(data: unknown, endpoint: string) {
+  if (!data || typeof data !== 'object') return null
+  const record = data as Record<string, unknown>
+  const apiOrigin = endpoint.startsWith('/') ? window.location.origin : new URL(endpoint).origin
+  for (const key of ['url', 'chat_url', 'chatUrl', 'session_url']) {
+    const value = record[key]
+    if (typeof value !== 'string' || !value.trim()) continue
+    if (/^https?:\/\//i.test(value)) return value
+    if (value.startsWith('/')) return `${apiOrigin}${value}`
+  }
+  const token = record.token ?? record.session_id ?? record.sessionId
+  if (typeof token !== 'string' || !token.trim()) return null
+  return `${window.location.origin}/chat/${encodeURIComponent(token.trim())}`
+}
+
+function rememberChatSession(url: string, report: string, jurisdiction: Jurisdiction, email: string) {
+  try {
+    const parsed = new URL(url)
+    if (parsed.origin !== window.location.origin) return
+    const token = decodeURIComponent(parsed.pathname.split('/').filter(Boolean).at(-1) ?? '')
+    if (!token) return
+    localStorage.setItem(CHAT_SESSION_KEY + token, JSON.stringify({ report, jurisdiction, email }))
+  } catch {}
+}
+
+async function requestChatSession(endpoint: string, report: string, jurisdiction: Jurisdiction, email: string) {
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ report, jurisdiction, email }),
+    signal: endpoint.startsWith('/') ? undefined : AbortSignal.timeout(12_000),
+  })
+  const data: unknown = await res.json().catch(() => ({}))
+  const url = chatSessionUrl(data, endpoint)
+  if (!res.ok || !url) return { url: null, error: chatErrorMessage(data, res.status), missing: res.status === 404 || res.status === 405 }
+  rememberChatSession(url, report, jurisdiction, email)
+  return { url, error: null, missing: false }
+}
+
+async function createChatLink(report: string, jurisdiction: Jurisdiction, email: string) {
+  const endpoints = CHAT_API_URL ? [`${CHAT_API_URL}/api/chat/session`, '/api/chat/session'] : ['/api/chat/session']
+  let lastError = 'Не удалось связаться с сервером чата.'
+  for (const endpoint of endpoints) {
+    try {
+      const result = await requestChatSession(endpoint, report, jurisdiction, email)
+      if (result.url) return { url: result.url, error: null }
+      lastError = result.error ?? lastError
+      if (!result.missing) break
+    } catch {
+      lastError = 'Не удалось связаться с сервером чата.'
+    }
+  }
+  return { url: null, error: lastError }
 }
 
 const CHAT_BUTTON_CLASS =
