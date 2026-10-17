@@ -416,7 +416,7 @@ export function PremiumUpsell({
           </div>
         </div>
       ) : state.kind === 'submitting' ? (
-        <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-5" role="status">
+        <div className="flex items-start gap-3 rounded-xl border border-success/40 bg-success/10 p-5 text-success" role="status">
           <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin" aria-hidden="true" />
           <div className="flex flex-col gap-1">
             <p className="text-sm font-semibold">Оплата подтверждена. Формируем полный отчёт</p>
@@ -582,9 +582,9 @@ function DeepAuditDialog({
             />
           </div>
         ) : state.kind === 'submitting' ? (
-          <div className="flex items-start gap-3 rounded-lg border border-border bg-background p-4" role="status">
-            <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin" aria-hidden="true" />
-            <p className="text-sm leading-relaxed">
+          <div className="flex items-start gap-3 rounded-lg border border-success/40 bg-success/10 p-4 text-success" role="status">
+            <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-success" aria-hidden="true" />
+            <p className="text-sm font-semibold leading-relaxed">
               Оплата подтверждена. Формируем полный отчёт — это может занять несколько минут.
             </p>
           </div>
@@ -632,7 +632,7 @@ function DeepAuditDialog({
             </a>
           )}
           {state.kind === 'submitting' && (
-            <button type="button" disabled className={PAY_BUTTON_CLASS}>
+            <button type="button" disabled className="inline-flex h-11 cursor-default items-center justify-center gap-2 rounded-lg bg-success px-4 text-sm font-semibold text-white">
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
               Формируем отчёт…
             </button>
