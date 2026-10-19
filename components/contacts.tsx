@@ -8,26 +8,26 @@ import { SectionHeading } from '@/components/how-it-works'
 const contacts: { name: string; handle: string; href: string; icon: IconType }[] = [
   {
     name: 'Gmail',
-    handle: 'stroyaudit.ai@gmail.com',
-    href: 'mailto:stroyaudit.ai@gmail.com',
+    handle: 'stroy.audit.ai@gmail.com',
+    href: 'mailto:stroy.audit.ai@gmail.com',
     icon: SiGmail,
   },
   {
     name: 'LinkedIn',
-    handle: 'СтройАудит.ai',
-    href: 'https://www.linkedin.com/company/stroyaudit-ai',
+    handle: 'linkedin.com/company/145312773',
+    href: 'https://www.linkedin.com/company/145312773/admin/dashboard/',
     icon: FaLinkedinIn,
   },
   {
     name: 'Instagram',
-    handle: '@stroyaudit.ai',
-    href: 'https://www.instagram.com/stroyaudit.ai',
+    handle: '@stroy.audit.ai',
+    href: 'https://www.instagram.com/stroy.audit.ai',
     icon: FaInstagram,
   },
   {
     name: 'Telegram',
-    handle: '@stroyaudit_ai',
-    href: 'https://t.me/stroyaudit_ai',
+    handle: '@ai_build_check',
+    href: 'https://t.me/ai_build_check',
     icon: FaTelegram,
   },
 ]
