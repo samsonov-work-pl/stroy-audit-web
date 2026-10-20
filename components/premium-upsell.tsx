@@ -316,21 +316,34 @@ function TierPayButton({
   onPay: (event: { preventDefault: () => void }) => void
 }) {
   const className =
-    'inline-flex h-11 items-center justify-center gap-2 rounded-lg border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-background/90 active:scale-[0.99]'
+    'inline-flex h-11 items-center justify-center gap-1 rounded-lg border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-background/90'
   const style = { borderColor: TIER_FRAME_COLOR[tier] }
+  const tariffName = tier === 'full' ? 'полный отчёт' : 'отчёт для застройщиков'
+  const payClass = 'inline-flex items-center gap-2'
+  const tariffLink = (
+    <a href="#pricing" className="underline decoration-1 underline-offset-2 hover:opacity-70">
+      {tariffName}
+    </a>
+  )
   if (href) {
     return (
-      <a href={href} onClick={onPay} className={className} style={style}>
-        <Sparkles className="size-4" aria-hidden="true" />
-        {label}
-      </a>
+      <div className={className} style={style} aria-label={label}>
+        <a href={href} onClick={onPay} className={payClass}>
+          <Sparkles className="size-4" aria-hidden="true" />
+          Получить
+        </a>
+        {tariffLink}
+      </div>
     )
   }
   return (
-    <button type="button" onClick={() => onPay({ preventDefault() {} })} className={className} style={style}>
-      <Sparkles className="size-4" aria-hidden="true" />
-      {label}
-    </button>
+    <div className={className} style={style} aria-label={label}>
+      <button type="button" onClick={() => onPay({ preventDefault() {} })} className={payClass}>
+        <Sparkles className="size-4" aria-hidden="true" />
+        Получить
+      </button>
+      {tariffLink}
+    </div>
   )
 }
 
