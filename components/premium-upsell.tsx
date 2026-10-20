@@ -3,7 +3,18 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { CheckCircle2, ExternalLink, Loader2, Lock, MessagesSquare, Sparkles, X } from 'lucide-react'
 import { getJurisdiction, type Jurisdiction } from '@/components/jurisdiction-provider'
-import { loadSelectedTier, paymentSuccessUrl, saveSelectedTier, TIER_EVENT, TIER_FRAME_COLOR, type PaidTier } from '@/lib/audit-tier'
+import { isPaidTier, loadSelectedTier, saveSelectedTier, TIER_EVENT, TIER_FRAME_COLOR, type PaidTier } from '@/lib/audit-tier'
+import {
+  claimReportGeneration,
+  lavaWidgetId,
+  lavaWidgetSrc,
+  PAYMENT_CHANNEL,
+  PAYMENT_SIGNAL_KEY,
+  paymentSuccessFromMessage,
+  paymentSuccessFromStorage,
+  publishPaymentSuccess,
+  releaseReportGeneration,
+} from '@/lib/lava-widget'
 import { cn } from '@/lib/utils'
 import { isRealPdfUrl, showReportInWindow } from '@/lib/report-pdf'
 
@@ -241,108 +252,32 @@ function clearPaymentSuccess() {
   window.history.replaceState(null, '', url.pathname + (query ? `?${query}` : '') + url.hash)
 }
 
-function isHttpUrl(value: string) {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'https:' || url.protocol === 'http:'
-  } catch {
-    return false
-  }
-}
-
-function isLavaCheckout(value: string) {
-  try {
-    const host = new URL(value).hostname.toLowerCase()
-    return host === 'lava.top' || host.endsWith('.lava.top')
-  } catch {
-    return false
-  }
-}
-
-const LAVA_FULL_CHECKOUT = 'https://app.lava.top/products/46156488-439c-4f84-86b9-7628f5a6e93e'
-
-function configuredCheckout(tier: PaidTier, jurisdiction: Jurisdiction) {
-  if (tier === 'developer') {
-    const direct =
-      process.env.NEXT_PUBLIC_LAVA_CHECKOUT_DEVELOPER?.trim() ||
-      process.env.NEXT_PUBLIC_LAVA_DEVELOPER_URL?.trim()
-    if (direct && isHttpUrl(direct)) return direct
-    const productId = process.env.NEXT_PUBLIC_LAVA_PRODUCT_DEVELOPERS?.trim()
-    if (productId) return `https://app.lava.top/products/${encodeURIComponent(productId)}`
-    return null
-  }
-
-  const byJurisdiction: Record<Jurisdiction, string | undefined> = {
-    russia: process.env.NEXT_PUBLIC_LAVA_CHECKOUT_RUB,
-    belarus: process.env.NEXT_PUBLIC_LAVA_CHECKOUT_BYN,
-    kazakhstan: process.env.NEXT_PUBLIC_LAVA_CHECKOUT_KZT,
-    eurocodes: process.env.NEXT_PUBLIC_LAVA_CHECKOUT_EUR,
-  }
-  const candidates = [
-    byJurisdiction[jurisdiction],
-    process.env.NEXT_PUBLIC_LAVA_CHECKOUT_URL,
-    process.env.NEXT_PUBLIC_LAVA_FULL_URL,
-  ]
-  for (const candidate of candidates) {
-    const url = candidate?.trim()
-    if (url && isHttpUrl(url)) return url
-  }
-  const productId = process.env.NEXT_PUBLIC_LAVA_PRODUCT_FULL?.trim()
-  if (productId) return `https://app.lava.top/products/${encodeURIComponent(productId)}`
-  return LAVA_FULL_CHECKOUT
-}
-
-function withCheckoutParams(url: string, email: string, tier: PaidTier) {
-  const target = new URL(url)
-  if (email && isLavaCheckout(url)) target.searchParams.set('email', email)
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-    target.searchParams.set('successful_return_url', paymentSuccessUrl(window.location.origin, tier))
-  }
-  return target.toString()
-}
-
 const PAY_BUTTON_CLASS =
   'inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/85'
 
 function TierPayButton({
   tier,
   label,
-  href,
   onPay,
 }: {
   tier: PaidTier
   label: string
-  href: string | null
-  onPay: (event: { preventDefault: () => void }) => void
+  onPay: () => void
 }) {
-  const className =
-    'inline-flex h-11 items-center justify-center gap-1 rounded-lg border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-background/90'
-  const style = { borderColor: TIER_FRAME_COLOR[tier] }
   const tariffName = tier === 'full' ? 'полный отчёт' : 'отчёт для застройщиков'
-  const payClass = 'inline-flex items-center gap-2'
-  const tariffLink = (
-    <a href="#pricing" className="underline decoration-1 underline-offset-2 hover:opacity-70">
-      {tariffName}
-    </a>
-  )
-  if (href) {
-    return (
-      <div className={className} style={style} aria-label={label}>
-        <a href={href} onClick={onPay} className={payClass}>
-          <Sparkles className="size-4" aria-hidden="true" />
-          Получить
-        </a>
-        {tariffLink}
-      </div>
-    )
-  }
   return (
-    <div className={className} style={style} aria-label={label}>
-      <button type="button" onClick={() => onPay({ preventDefault() {} })} className={payClass}>
+    <div
+      className="inline-flex h-11 items-center justify-center gap-1 rounded-lg border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-background/90"
+      style={{ borderColor: TIER_FRAME_COLOR[tier] }}
+      aria-label={label}
+    >
+      <button type="button" onClick={onPay} className="inline-flex items-center gap-2">
         <Sparkles className="size-4" aria-hidden="true" />
         Получить
       </button>
-      {tariffLink}
+      <a href="#pricing" className="underline decoration-1 underline-offset-2 hover:opacity-70">
+        {tariffName}
+      </a>
     </div>
   )
 }
@@ -363,20 +298,17 @@ export function PremiumUpsell({
   onFullReport: (deep: DeepResult) => void
 }) {
   const [open, setOpen] = useState(false)
-  const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [payOpen, setPayOpen] = useState(false)
   const [tier, setTier] = useState<PaidTier>('full')
   const [state, setState] = useState<DeepState>(
     initialDeep ? { kind: 'done', ...initialDeep } : { kind: 'idle' },
   )
   const price = (tier === 'developer' ? DEVELOPER_PRICE : DEEP_PRICE)[request.jurisdiction]
   const features = tier === 'developer' ? DEVELOPER_FEATURES : PRO_FEATURES
-  const hrefFor = (paid: PaidTier) => {
-    const url = configuredCheckout(paid, request.jurisdiction)
-    return url ? withCheckoutParams(url, request.email, paid) : null
-  }
-  const checkoutHref = hrefFor(tier)
+  const widgetId = lavaWidgetId(tier)
   const generating = useRef(false)
   const delivered = useRef(Boolean(initialDeep))
+  const paidBaseline = useRef<boolean | null>(null)
   const requestRef = useRef(request)
   requestRef.current = request
   const onFullReportRef = useRef(onFullReport)
@@ -384,15 +316,19 @@ export function PremiumUpsell({
 
   const generateFullReport = useCallback(async () => {
     if (generating.current || delivered.current) return
+    if (!claimReportGeneration()) return
     const current = requestRef.current
     if (!current.file) {
+      releaseReportGeneration()
       setState({
         kind: 'error',
         message: 'Файл проекта не сохранился в браузере. Загрузите его заново — после оплаты отчёт запустится сам.',
       })
+      setOpen(true)
       return
     }
     generating.current = true
+    setPayOpen(false)
     setState({ kind: 'submitting' })
     setOpen(true)
     const body = new FormData()
@@ -413,6 +349,7 @@ export function PremiumUpsell({
       } catch {}
       if (!res.ok) {
         generating.current = false
+        releaseReportGeneration()
         const detail = pickString(data, ['detail', 'message', 'error'])
         setState({ kind: 'error', message: detail ?? `Не удалось сформировать отчёт (HTTP ${res.status}).` })
         return
@@ -422,6 +359,7 @@ export function PremiumUpsell({
       const pdfUrl = isRealPdfUrl(rawPdf) ? rawPdf : null
       if (!report && !pdfUrl) {
         generating.current = false
+        releaseReportGeneration()
         setState({ kind: 'error', message: 'Сервер не вернул текст отчёта. Попробуйте ещё раз.' })
         return
       }
@@ -431,6 +369,7 @@ export function PremiumUpsell({
       setState({ kind: 'done', pdfUrl, report, chatUrl })
     } catch {
       generating.current = false
+      releaseReportGeneration()
       setState({ kind: 'error', message: 'Не удалось связаться с сервером. Проверьте подключение и попробуйте снова.' })
     }
   }, [consentVersion, deepUrl])
@@ -442,17 +381,86 @@ export function PremiumUpsell({
     return () => window.removeEventListener(TIER_EVENT, syncTier)
   }, [])
 
+  const unlockPaidReport = useCallback(
+    (paid: PaidTier) => {
+      saveSelectedTier(paid)
+      setTier(paid)
+      setPayOpen(false)
+      document.getElementById('audit-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      void generateFullReport()
+    },
+    [generateFullReport],
+  )
+
   useEffect(() => {
     if (!paymentJustSucceeded()) return
+    const paid = loadSelectedTier()
+    publishPaymentSuccess(paid)
     if (initialDeep || delivered.current) {
       clearPaymentSuccess()
       return
     }
     if (!request.file) return
     clearPaymentSuccess()
-    document.getElementById('audit-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    void generateFullReport()
-  }, [initialDeep, request.file, generateFullReport])
+    unlockPaidReport(paid)
+  }, [initialDeep, request.file, unlockPaidReport])
+
+  useEffect(() => {
+    const onPaid = (paid: PaidTier) => unlockPaidReport(paid)
+    const onMessage = (event: MessageEvent) => {
+      const paid = paymentSuccessFromMessage(event)
+      if (paid === true) onPaid(loadSelectedTier())
+      else if (paid) onPaid(paid)
+    }
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== PAYMENT_SIGNAL_KEY) return
+      const paid = paymentSuccessFromStorage(event.newValue)
+      if (paid) onPaid(paid)
+    }
+    let channel: BroadcastChannel | null = null
+    try {
+      channel = new BroadcastChannel(PAYMENT_CHANNEL)
+      channel.onmessage = (event: MessageEvent) => {
+        const data = event.data as { type?: unknown; tier?: unknown } | null
+        if (data?.type === 'stroyaudit:payment-success' && isPaidTier(data.tier)) onPaid(data.tier)
+      }
+    } catch {}
+    window.addEventListener('message', onMessage)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener('message', onMessage)
+      window.removeEventListener('storage', onStorage)
+      channel?.close()
+    }
+  }, [unlockPaidReport])
+
+  useEffect(() => {
+    if (!payOpen) return
+    const email = request.email.trim()
+    if (!email) return
+    let stopped = false
+    paidBaseline.current = null
+    const watchUntil = Date.now() + 3 * 60 * 1000
+    async function lookForPayment() {
+      if (stopped || Date.now() > watchUntil || delivered.current) return
+      try {
+        const res = await fetch(`/api/payments/status?email=${encodeURIComponent(email)}`)
+        const data = (await res.json().catch(() => null)) as { paid?: unknown } | null
+        const paid = data?.paid === true
+        if (paidBaseline.current === null) {
+          paidBaseline.current = paid
+          return
+        }
+        if (!paidBaseline.current && paid) unlockPaidReport(loadSelectedTier())
+      } catch {}
+    }
+    void lookForPayment()
+    const timer = window.setInterval(() => void lookForPayment(), 4000)
+    return () => {
+      stopped = true
+      window.clearInterval(timer)
+    }
+  }, [payOpen, request.email, unlockPaidReport])
 
   function handleChatCreated(chatUrl: string) {
     if (state.kind !== 'done') return
@@ -461,31 +469,11 @@ export function PremiumUpsell({
     setState({ kind: 'done', ...next })
   }
 
-  async function startPayment(event: { preventDefault: () => void }, paid: PaidTier = tier) {
-    event.preventDefault()
-    setPaymentError(null)
+  function openPayment(paid: PaidTier) {
     saveSelectedTier(paid)
     setTier(paid)
-    const fallback = configuredCheckout(paid, request.jurisdiction)
-    const fallbackHref = fallback ? withCheckoutParams(fallback, request.email, paid) : null
-    try {
-      const res = await fetch('/api/payments/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: request.email, jurisdiction: request.jurisdiction, tier: paid }),
-      })
-      const data = (await res.json().catch(() => ({}))) as { paymentUrl?: string }
-      if (data.paymentUrl?.startsWith('https://')) {
-        window.location.assign(data.paymentUrl)
-        return
-      }
-    } catch {}
-    if (fallbackHref) {
-      window.location.assign(fallbackHref)
-      return
-    }
-    setPaymentError('Ссылка на оплату этого тарифа не настроена. Напишите нам — поможем оформить доступ.')
-    setOpen(true)
+    setOpen(false)
+    setPayOpen(true)
   }
 
   return (
@@ -543,17 +531,11 @@ export function PremiumUpsell({
             </div>
           </div>
           <div className="flex shrink-0 flex-col gap-2">
-            <TierPayButton
-              tier="full"
-              label="Получить полный отчёт"
-              href={hrefFor('full')}
-              onPay={(event) => void startPayment(event, 'full')}
-            />
+            <TierPayButton tier="full" label="Получить полный отчёт" onPay={() => openPayment('full')} />
             <TierPayButton
               tier="developer"
               label="Получить отчёт для застройщиков"
-              href={hrefFor('developer')}
-              onPay={(event) => void startPayment(event, 'developer')}
+              onPay={() => openPayment('developer')}
             />
           </div>
         </div>
@@ -571,11 +553,15 @@ export function PremiumUpsell({
         email={request.email}
         jurisdiction={request.jurisdiction}
         state={state}
-        checkoutHref={checkoutHref}
-        paymentError={paymentError}
-        onPay={startPayment}
+        onPay={() => openPayment(tier)}
         onRetry={() => void generateFullReport()}
         onChatCreated={handleChatCreated}
+      />
+      <LavaWidgetDialog
+        open={payOpen}
+        tier={tier}
+        widgetId={widgetId}
+        onClose={() => setPayOpen(false)}
       />
     </>
   )
@@ -590,8 +576,6 @@ function DeepAuditDialog({
   email,
   jurisdiction,
   state,
-  checkoutHref,
-  paymentError,
   onPay,
   onRetry,
   onChatCreated,
@@ -604,9 +588,7 @@ function DeepAuditDialog({
   email: string
   jurisdiction: Jurisdiction
   state: DeepState
-  checkoutHref: string | null
-  paymentError: string | null
-  onPay: (event: { preventDefault: () => void }) => void
+  onPay: () => void
   onRetry: () => void
   onChatCreated: (chatUrl: string) => void
 }) {
@@ -705,9 +687,9 @@ function DeepAuditDialog({
               <span className="font-mono text-xl font-bold tabular-nums">{price}</span>
             </div>
 
-            {(state.kind === 'error' || paymentError) && (
+            {state.kind === 'error' && (
               <p role="alert" className="text-xs text-warning">
-                {state.kind === 'error' ? state.message : paymentError}
+                {state.message}
               </p>
             )}
           </>
@@ -727,26 +709,16 @@ function DeepAuditDialog({
               Сформировать отчёт
             </button>
           )}
-          {state.kind !== 'done' && state.kind !== 'submitting' &&
-            (checkoutHref ? (
-              <a
-                href={checkoutHref}
-                onClick={onPay}
-                className={cn(PAY_BUTTON_CLASS, 'border')}
-                style={{ borderColor: TIER_FRAME_COLOR[tier] }}
-              >
-                {`Оплатить ${price}`}
-              </a>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onPay({ preventDefault() {} })}
-                className={cn(PAY_BUTTON_CLASS, 'border')}
-                style={{ borderColor: TIER_FRAME_COLOR[tier] }}
-              >
-                {`Оплатить ${price}`}
-              </button>
-            ))}
+          {state.kind !== 'done' && state.kind !== 'submitting' && (
+            <button
+              type="button"
+              onClick={onPay}
+              className={cn(PAY_BUTTON_CLASS, 'border')}
+              style={{ borderColor: TIER_FRAME_COLOR[tier] }}
+            >
+              {`Оплатить ${price}`}
+            </button>
+          )}
           {state.kind === 'submitting' && (
             <button type="button" disabled className="inline-flex h-11 cursor-default items-center justify-center gap-2 rounded-lg bg-success px-4 text-sm font-semibold text-white">
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -754,6 +726,79 @@ function DeepAuditDialog({
             </button>
           )}
         </div>
+      </div>
+    </dialog>
+  )
+}
+
+function LavaWidgetDialog({
+  open,
+  tier,
+  widgetId,
+  onClose,
+}: {
+  open: boolean
+  tier: PaidTier
+  widgetId: string | null
+  onClose: () => void
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
+
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+    if (open && !dialog.open) dialog.showModal()
+    else if (!open && dialog.open) dialog.close()
+  }, [open])
+
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby={titleId}
+      onCancel={(event) => {
+        event.preventDefault()
+        onClose()
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border bg-card p-0 text-foreground shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-sm"
+      style={{ borderColor: TIER_FRAME_COLOR[tier] }}
+    >
+      <div className="flex flex-col gap-4 p-5 text-left sm:p-6">
+        <div className="flex items-start gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <h2 id={titleId} className="text-base font-bold">
+              {tier === 'developer' ? 'Оплата отчёта для застройщиков' : 'Оплата полного отчёта'}
+            </h2>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Оплата проходит в окне на этой странице. После неё подробный отчёт откроется здесь же.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Закрыть"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+        {widgetId ? (
+          <iframe
+            title="Оплата Lava.top"
+            src={lavaWidgetSrc(widgetId)}
+            width={260}
+            height={80}
+            referrerPolicy="origin"
+            className="mx-auto block border-0"
+          />
+        ) : (
+          <p role="alert" className="text-sm text-warning">
+            Виджет этого тарифа ещё не подключён. Создайте Web-Widget в кабинете Lava.top для домена сайта.
+          </p>
+        )}
       </div>
     </dialog>
   )
