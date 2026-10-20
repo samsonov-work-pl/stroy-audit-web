@@ -1,3 +1,4 @@
+import { isPaidTier, paymentSuccessUrl, type PaidTier } from '@/lib/audit-tier'
 import { normalizeEmail } from '@/lib/payment-status'
 
 const LAVA_INVOICE_URL = 'https://gate.lava.top/api/v3/invoice'
@@ -10,7 +11,11 @@ const CURRENCY: Record<string, string> = {
   eurocodes: 'EUR',
 }
 
-function offerId() {
+function offerId(tier: PaidTier) {
+  if (tier === 'developer') {
+    const raw = process.env.LAVA_OFFER_DEVELOPERS || process.env.LAVA_PRODUCT_DEVELOPERS || ''
+    return raw.split(',')[0]?.trim() || null
+  }
   const raw = process.env.LAVA_OFFER_FULL || process.env.LAVA_PRODUCT_FULL || FALLBACK_OFFER_ID
   return raw.split(',')[0]?.trim() || FALLBACK_OFFER_ID
 }
@@ -35,13 +40,20 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ paymentUrl: null })
   }
-  const { email, jurisdiction } = (body ?? {}) as { email?: unknown; jurisdiction?: unknown }
+  const { email, jurisdiction, tier: rawTier } = (body ?? {}) as {
+    email?: unknown
+    jurisdiction?: unknown
+    tier?: unknown
+  }
   const buyer = normalizeEmail(typeof email === 'string' ? email : null)
   if (!buyer) return Response.json({ paymentUrl: null })
+  const tier: PaidTier = isPaidTier(rawTier) ? rawTier : 'full'
+  const offer = offerId(tier)
+  if (!offer) return Response.json({ paymentUrl: null })
 
   const origin = req.headers.get('origin')
   if (!origin?.startsWith('https://')) return Response.json({ paymentUrl: null })
-  const successUrl = `${origin}/?payment=success`
+  const successUrl = paymentSuccessUrl(origin, tier)
   const currency = CURRENCY[typeof jurisdiction === 'string' ? jurisdiction : ''] ?? 'RUB'
 
   try {
@@ -54,7 +66,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         email: buyer,
-        offerId: offerId(),
+        offerId: offer,
         currency,
         buyerLanguage: 'RU',
         successful_return_url: successUrl,

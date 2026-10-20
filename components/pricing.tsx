@@ -1,6 +1,10 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import { Reveal } from '@/components/reveal'
 import { SectionHeading } from '@/components/how-it-works'
+import { loadStoredTier, saveSelectedTier, TIER_EVENT, type PaidTier } from '@/lib/audit-tier'
 import { cn } from '@/lib/utils'
 
 type Currency = 'BYN' | 'RUB' | 'KZT'
@@ -16,6 +20,7 @@ const currencies: { id: Currency; symbol: string; country: string }[] = [
 
 const plans: {
   name: string
+  tier: PaidTier | null
   period: string
   prices: Record<Currency, string>
   features: string[]
@@ -23,6 +28,7 @@ const plans: {
 }[] = [
   {
     name: 'Экспресс',
+    tier: null,
     period: 'за один проект',
     prices: { BYN: 'бесплатно', RUB: 'бесплатно', KZT: 'бесплатно' },
     features: [
@@ -34,6 +40,7 @@ const plans: {
   },
   {
     name: 'Полный аудит',
+    tier: 'full',
     period: 'за один проект',
     prices: { BYN: '249', RUB: '7 900', KZT: '39 900' },
     features: [
@@ -48,6 +55,7 @@ const plans: {
   },
   {
     name: 'Для застройщиков',
+    tier: 'developer',
     period: 'в месяц',
     prices: { BYN: '899', RUB: '29 900', KZT: '149 900' },
     features: [
@@ -96,6 +104,15 @@ function Flag({ currency }: { currency: Currency }) {
 }
 
 export function Pricing() {
+  const [selected, setSelected] = useState<PaidTier | null>(null)
+
+  useEffect(() => {
+    const sync = () => setSelected(loadStoredTier())
+    sync()
+    window.addEventListener(TIER_EVENT, sync)
+    return () => window.removeEventListener(TIER_EVENT, sync)
+  }, [])
+
   return (
     <section id="pricing" className="scroll-mt-16 border-b border-border">
       <div className="mx-auto flex max-w-6xl flex-col gap-14 px-5 py-24 md:py-32">
@@ -157,6 +174,10 @@ export function Pricing() {
 
                 <a
                   href="#upload"
+                  aria-pressed={plan.tier !== null && selected === plan.tier}
+                  onClick={() => {
+                    if (plan.tier) saveSelectedTier(plan.tier)
+                  }}
                   className={cn(
                     'inline-flex h-11 items-center justify-center rounded-lg text-sm font-semibold transition-all active:scale-[0.99]',
                     plan.popular
@@ -164,7 +185,7 @@ export function Pricing() {
                       : 'border border-border bg-card text-foreground hover:border-foreground',
                   )}
                 >
-                  Выбрать
+                  {plan.tier && selected === plan.tier ? 'Выбран' : 'Выбрать'}
                   <span className="sr-only"> тариф «{plan.name}»</span>
                 </a>
               </div>

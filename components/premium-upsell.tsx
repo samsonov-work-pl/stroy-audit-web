@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { CheckCircle2, ExternalLink, Loader2, Lock, MessagesSquare, Sparkles, X } from 'lucide-react'
 import { getJurisdiction, type Jurisdiction } from '@/components/jurisdiction-provider'
+import { loadSelectedTier, paymentSuccessUrl, saveSelectedTier, TIER_EVENT, type PaidTier } from '@/lib/audit-tier'
 import { isRealPdfUrl, showReportInWindow } from '@/lib/report-pdf'
 
 type DeepResult = { pdfUrl: string | null; report: string | null; chatUrl?: string | null }
@@ -179,12 +180,26 @@ const DEEP_PRICE: Record<Jurisdiction, string> = {
   eurocodes: '7 900 ₽',
 }
 
+const DEVELOPER_PRICE: Record<Jurisdiction, string> = {
+  russia: '29 900 ₽',
+  belarus: '899 BYN',
+  kazakhstan: '149 900 ₸',
+  eurocodes: '29 900 ₽',
+}
+
 const PRO_FEATURES = [
   'Все найденные замечания, а не только топ-3',
   'Ссылки на конкретные пункты норм',
   'Рекомендации по исправлению',
   'Отчёт в PDF для подрядчика и экспертизы',
   'Чат по вашему отчёту: разбор замечаний и приоритетов по проекту',
+]
+
+const DEVELOPER_FEATURES = [
+  ...PRO_FEATURES,
+  'Детальный анализ смет и ведомостей объёмов',
+  'Разбор спецификаций материалов',
+  'Строительные рекомендации для подрядчиков',
 ]
 
 export type DeepAuditRequest = {
@@ -215,10 +230,12 @@ function paymentJustSucceeded() {
 }
 
 function clearPaymentSuccess() {
+  loadSelectedTier()
   const url = new URL(window.location.href)
   url.searchParams.delete('payment')
   if (url.searchParams.get('status') === 'success') url.searchParams.delete('status')
   url.searchParams.delete('invoiceId')
+  url.searchParams.delete('tier')
   const query = url.searchParams.toString()
   window.history.replaceState(null, '', url.pathname + (query ? `?${query}` : '') + url.hash)
 }
@@ -243,7 +260,17 @@ function isLavaCheckout(value: string) {
 
 const LAVA_FULL_CHECKOUT = 'https://app.lava.top/products/46156488-439c-4f84-86b9-7628f5a6e93e'
 
-function configuredCheckout(jurisdiction: Jurisdiction) {
+function configuredCheckout(tier: PaidTier, jurisdiction: Jurisdiction) {
+  if (tier === 'developer') {
+    const direct =
+      process.env.NEXT_PUBLIC_LAVA_CHECKOUT_DEVELOPER?.trim() ||
+      process.env.NEXT_PUBLIC_LAVA_DEVELOPER_URL?.trim()
+    if (direct && isHttpUrl(direct)) return direct
+    const productId = process.env.NEXT_PUBLIC_LAVA_PRODUCT_DEVELOPERS?.trim()
+    if (productId) return `https://app.lava.top/products/${encodeURIComponent(productId)}`
+    return null
+  }
+
   const byJurisdiction: Record<Jurisdiction, string | undefined> = {
     russia: process.env.NEXT_PUBLIC_LAVA_CHECKOUT_RUB,
     belarus: process.env.NEXT_PUBLIC_LAVA_CHECKOUT_BYN,
@@ -264,11 +291,11 @@ function configuredCheckout(jurisdiction: Jurisdiction) {
   return LAVA_FULL_CHECKOUT
 }
 
-function withCheckoutParams(url: string, email: string) {
+function withCheckoutParams(url: string, email: string, tier: PaidTier) {
   const target = new URL(url)
   if (email && isLavaCheckout(url)) target.searchParams.set('email', email)
   if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-    target.searchParams.set('successful_return_url', `${window.location.origin}/?payment=success`)
+    target.searchParams.set('successful_return_url', paymentSuccessUrl(window.location.origin, tier))
   }
   return target.toString()
 }
@@ -292,13 +319,17 @@ export function PremiumUpsell({
   onFullReport: (deep: DeepResult) => void
 }) {
   const [open, setOpen] = useState(false)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [tier, setTier] = useState<PaidTier>('full')
   const [state, setState] = useState<DeepState>(
     initialDeep ? { kind: 'done', ...initialDeep } : { kind: 'idle' },
   )
-  const price = DEEP_PRICE[request.jurisdiction]
+  const price = (tier === 'developer' ? DEVELOPER_PRICE : DEEP_PRICE)[request.jurisdiction]
+  const features = tier === 'developer' ? DEVELOPER_FEATURES : PRO_FEATURES
+  const payLabel = tier === 'developer' ? 'Получить отчёт для застройщиков' : 'Получить полный отчёт'
   const checkoutHref = (() => {
-    const url = configuredCheckout(request.jurisdiction)
-    return url ? withCheckoutParams(url, request.email) : null
+    const url = configuredCheckout(tier, request.jurisdiction)
+    return url ? withCheckoutParams(url, request.email, tier) : null
   })()
   const generating = useRef(false)
   const delivered = useRef(Boolean(initialDeep))
@@ -328,6 +359,7 @@ export function PremiumUpsell({
     body.append('consent_version', consentVersion)
     body.append('payment_verified', 'true')
     if (current.auditId) body.append('audit_id', current.auditId)
+    body.append('tier', loadSelectedTier())
     try {
       const res = await fetch(deepUrl, { method: 'POST', body })
       const raw = await res.text()
@@ -360,6 +392,13 @@ export function PremiumUpsell({
   }, [consentVersion, deepUrl])
 
   useEffect(() => {
+    const syncTier = () => setTier(loadSelectedTier())
+    syncTier()
+    window.addEventListener(TIER_EVENT, syncTier)
+    return () => window.removeEventListener(TIER_EVENT, syncTier)
+  }, [])
+
+  useEffect(() => {
     if (!paymentJustSucceeded()) return
     if (initialDeep || delivered.current) {
       clearPaymentSuccess()
@@ -380,12 +419,16 @@ export function PremiumUpsell({
 
   async function startPayment(event: { preventDefault: () => void }) {
     event.preventDefault()
-    const fallback = checkoutHref
+    setPaymentError(null)
+    const selected = loadSelectedTier()
+    saveSelectedTier(selected)
+    const fallback = configuredCheckout(selected, request.jurisdiction)
+    const fallbackHref = fallback ? withCheckoutParams(fallback, request.email, selected) : null
     try {
       const res = await fetch('/api/payments/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: request.email, jurisdiction: request.jurisdiction }),
+        body: JSON.stringify({ email: request.email, jurisdiction: request.jurisdiction, tier: selected }),
       })
       const data = (await res.json().catch(() => ({}))) as { paymentUrl?: string }
       if (data.paymentUrl?.startsWith('https://')) {
@@ -393,7 +436,12 @@ export function PremiumUpsell({
         return
       }
     } catch {}
-    if (fallback) window.location.assign(fallback)
+    if (fallbackHref) {
+      window.location.assign(fallbackHref)
+      return
+    }
+    setPaymentError('Ссылка на оплату этого тарифа не настроена. Напишите нам — поможем оформить доступ.')
+    setOpen(true)
   }
 
   return (
@@ -419,7 +467,9 @@ export function PremiumUpsell({
         <div className="flex items-start gap-3 rounded-xl border border-success/40 bg-success/10 p-5 text-success" role="status">
           <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin" aria-hidden="true" />
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-semibold">Оплата подтверждена. Формируем полный отчёт</p>
+            <p className="text-sm font-semibold">
+              Оплата подтверждена. Формируем {tier === 'developer' ? 'отчёт для застройщиков' : 'полный отчёт'}
+            </p>
             <p className="text-xs leading-relaxed text-muted-foreground">
               Это может занять несколько минут. Не закрывайте страницу — готовый отчёт появится здесь.
             </p>
@@ -455,16 +505,16 @@ export function PremiumUpsell({
               className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-background px-5 text-sm font-semibold text-foreground transition-all hover:bg-background/90 active:scale-[0.99]"
             >
               <Sparkles className="size-4" aria-hidden="true" />
-              Получить полный отчёт
+              {payLabel}
             </a>
           ) : (
             <button
               type="button"
-              onClick={() => setOpen(true)}
+              onClick={startPayment}
               className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-background px-5 text-sm font-semibold text-foreground transition-all hover:bg-background/90 active:scale-[0.99]"
             >
               <Sparkles className="size-4" aria-hidden="true" />
-              Получить полный отчёт
+              {payLabel}
             </button>
           )}
         </div>
@@ -477,10 +527,13 @@ export function PremiumUpsell({
           if (state.kind !== 'submitting') setOpen(false)
         }}
         price={price}
+        tier={tier}
+        features={features}
         email={request.email}
         jurisdiction={request.jurisdiction}
         state={state}
         checkoutHref={checkoutHref}
+        paymentError={paymentError}
         onPay={startPayment}
         onRetry={() => void generateFullReport()}
         onChatCreated={handleChatCreated}
@@ -493,10 +546,13 @@ function DeepAuditDialog({
   open,
   onClose,
   price,
+  tier,
+  features,
   email,
   jurisdiction,
   state,
   checkoutHref,
+  paymentError,
   onPay,
   onRetry,
   onChatCreated,
@@ -504,11 +560,14 @@ function DeepAuditDialog({
   open: boolean
   onClose: () => void
   price: string
+  tier: PaidTier
+  features: string[]
   email: string
   jurisdiction: Jurisdiction
   state: DeepState
   checkoutHref: string | null
-  onPay: () => void
+  paymentError: string | null
+  onPay: (event: { preventDefault: () => void }) => void
   onRetry: () => void
   onChatCreated: (chatUrl: string) => void
 }) {
@@ -543,9 +602,11 @@ function DeepAuditDialog({
           </span>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <h2 id={titleId} className="text-base font-bold text-balance">
-              Подробный инженерный аудит
+              {tier === 'developer' ? 'Аудит для застройщиков' : 'Подробный инженерный аудит'}
             </h2>
-            <p className="text-xs text-muted-foreground">Тариф Pro · разовая оплата</p>
+            <p className="text-xs text-muted-foreground">
+              {tier === 'developer' ? 'Тариф «Для застройщиков» · в месяц' : 'Тариф «Полный аудит» · разовая оплата'}
+            </p>
           </div>
           <button
             type="button"
@@ -585,13 +646,14 @@ function DeepAuditDialog({
           <div className="flex items-start gap-3 rounded-lg border border-success/40 bg-success/10 p-4 text-success" role="status">
             <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-success" aria-hidden="true" />
             <p className="text-sm font-semibold leading-relaxed">
-              Оплата подтверждена. Формируем полный отчёт — это может занять несколько минут.
+              Оплата подтверждена. Формируем {tier === 'developer' ? 'отчёт для застройщиков' : 'полный отчёт'} — это
+              может занять несколько минут.
             </p>
           </div>
         ) : (
           <>
             <ul className="flex flex-col gap-2.5">
-              {PRO_FEATURES.map((feature) => (
+              {features.map((feature) => (
                 <li key={feature} className="flex items-start gap-2.5 text-sm">
                   <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
                   {feature}
@@ -604,9 +666,9 @@ function DeepAuditDialog({
               <span className="font-mono text-xl font-bold tabular-nums">{price}</span>
             </div>
 
-            {state.kind === 'error' && (
+            {(state.kind === 'error' || paymentError) && (
               <p role="alert" className="text-xs text-warning">
-                {state.message}
+                {state.kind === 'error' ? state.message : paymentError}
               </p>
             )}
           </>
@@ -626,11 +688,16 @@ function DeepAuditDialog({
               Сформировать отчёт
             </button>
           )}
-          {state.kind !== 'done' && state.kind !== 'submitting' && checkoutHref && (
-            <a href={checkoutHref} onClick={onPay} className={PAY_BUTTON_CLASS}>
-              {`Оплатить ${price}`}
-            </a>
-          )}
+          {state.kind !== 'done' && state.kind !== 'submitting' &&
+            (checkoutHref ? (
+              <a href={checkoutHref} onClick={onPay} className={PAY_BUTTON_CLASS}>
+                {`Оплатить ${price}`}
+              </a>
+            ) : (
+              <button type="button" onClick={() => onPay({ preventDefault() {} })} className={PAY_BUTTON_CLASS}>
+                {`Оплатить ${price}`}
+              </button>
+            ))}
           {state.kind === 'submitting' && (
             <button type="button" disabled className="inline-flex h-11 cursor-default items-center justify-center gap-2 rounded-lg bg-success px-4 text-sm font-semibold text-white">
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
