@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { CheckCircle2, ExternalLink, Loader2, Lock, MessagesSquare, Sparkles, X } from 'lucide-react'
 import { getJurisdiction, type Jurisdiction } from '@/components/jurisdiction-provider'
-import { loadSelectedTier, paymentSuccessUrl, saveSelectedTier, TIER_EVENT, type PaidTier } from '@/lib/audit-tier'
+import { loadSelectedTier, paymentSuccessUrl, saveSelectedTier, TIER_EVENT, TIER_FRAME_COLOR, type PaidTier } from '@/lib/audit-tier'
+import { cn } from '@/lib/utils'
 import { isRealPdfUrl, showReportInWindow } from '@/lib/report-pdf'
 
 type DeepResult = { pdfUrl: string | null; report: string | null; chatUrl?: string | null }
@@ -303,6 +304,36 @@ function withCheckoutParams(url: string, email: string, tier: PaidTier) {
 const PAY_BUTTON_CLASS =
   'inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/85'
 
+function TierPayButton({
+  tier,
+  label,
+  href,
+  onPay,
+}: {
+  tier: PaidTier
+  label: string
+  href: string | null
+  onPay: (event: { preventDefault: () => void }) => void
+}) {
+  const className =
+    'inline-flex h-11 items-center justify-center gap-2 rounded-lg border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-background/90 active:scale-[0.99]'
+  const style = { borderColor: TIER_FRAME_COLOR[tier] }
+  if (href) {
+    return (
+      <a href={href} onClick={onPay} className={className} style={style}>
+        <Sparkles className="size-4" aria-hidden="true" />
+        {label}
+      </a>
+    )
+  }
+  return (
+    <button type="button" onClick={() => onPay({ preventDefault() {} })} className={className} style={style}>
+      <Sparkles className="size-4" aria-hidden="true" />
+      {label}
+    </button>
+  )
+}
+
 export function PremiumUpsell({
   request,
   deepUrl,
@@ -326,11 +357,11 @@ export function PremiumUpsell({
   )
   const price = (tier === 'developer' ? DEVELOPER_PRICE : DEEP_PRICE)[request.jurisdiction]
   const features = tier === 'developer' ? DEVELOPER_FEATURES : PRO_FEATURES
-  const payLabel = tier === 'developer' ? 'Получить отчёт для застройщиков' : 'Получить полный отчёт'
-  const checkoutHref = (() => {
-    const url = configuredCheckout(tier, request.jurisdiction)
-    return url ? withCheckoutParams(url, request.email, tier) : null
-  })()
+  const hrefFor = (paid: PaidTier) => {
+    const url = configuredCheckout(paid, request.jurisdiction)
+    return url ? withCheckoutParams(url, request.email, paid) : null
+  }
+  const checkoutHref = hrefFor(tier)
   const generating = useRef(false)
   const delivered = useRef(Boolean(initialDeep))
   const requestRef = useRef(request)
@@ -417,18 +448,18 @@ export function PremiumUpsell({
     setState({ kind: 'done', ...next })
   }
 
-  async function startPayment(event: { preventDefault: () => void }) {
+  async function startPayment(event: { preventDefault: () => void }, paid: PaidTier = tier) {
     event.preventDefault()
     setPaymentError(null)
-    const selected = loadSelectedTier()
-    saveSelectedTier(selected)
-    const fallback = configuredCheckout(selected, request.jurisdiction)
-    const fallbackHref = fallback ? withCheckoutParams(fallback, request.email, selected) : null
+    saveSelectedTier(paid)
+    setTier(paid)
+    const fallback = configuredCheckout(paid, request.jurisdiction)
+    const fallbackHref = fallback ? withCheckoutParams(fallback, request.email, paid) : null
     try {
       const res = await fetch('/api/payments/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: request.email, jurisdiction: request.jurisdiction, tier: selected }),
+        body: JSON.stringify({ email: request.email, jurisdiction: request.jurisdiction, tier: paid }),
       })
       const data = (await res.json().catch(() => ({}))) as { paymentUrl?: string }
       if (data.paymentUrl?.startsWith('https://')) {
@@ -498,25 +529,20 @@ export function PremiumUpsell({
               </p>
             </div>
           </div>
-          {checkoutHref ? (
-            <a
-              href={checkoutHref}
-              onClick={startPayment}
-              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-background px-5 text-sm font-semibold text-foreground transition-all hover:bg-background/90 active:scale-[0.99]"
-            >
-              <Sparkles className="size-4" aria-hidden="true" />
-              {payLabel}
-            </a>
-          ) : (
-            <button
-              type="button"
-              onClick={startPayment}
-              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-background px-5 text-sm font-semibold text-foreground transition-all hover:bg-background/90 active:scale-[0.99]"
-            >
-              <Sparkles className="size-4" aria-hidden="true" />
-              {payLabel}
-            </button>
-          )}
+          <div className="flex shrink-0 flex-col gap-2">
+            <TierPayButton
+              tier="full"
+              label="Получить полный отчёт"
+              href={hrefFor('full')}
+              onPay={(event) => void startPayment(event, 'full')}
+            />
+            <TierPayButton
+              tier="developer"
+              label="Получить отчёт для застройщиков"
+              href={hrefFor('developer')}
+              onPay={(event) => void startPayment(event, 'developer')}
+            />
+          </div>
         </div>
       </div>
       )}
@@ -690,11 +716,21 @@ function DeepAuditDialog({
           )}
           {state.kind !== 'done' && state.kind !== 'submitting' &&
             (checkoutHref ? (
-              <a href={checkoutHref} onClick={onPay} className={PAY_BUTTON_CLASS}>
+              <a
+                href={checkoutHref}
+                onClick={onPay}
+                className={cn(PAY_BUTTON_CLASS, 'border')}
+                style={{ borderColor: TIER_FRAME_COLOR[tier] }}
+              >
                 {`Оплатить ${price}`}
               </a>
             ) : (
-              <button type="button" onClick={() => onPay({ preventDefault() {} })} className={PAY_BUTTON_CLASS}>
+              <button
+                type="button"
+                onClick={() => onPay({ preventDefault() {} })}
+                className={cn(PAY_BUTTON_CLASS, 'border')}
+                style={{ borderColor: TIER_FRAME_COLOR[tier] }}
+              >
                 {`Оплатить ${price}`}
               </button>
             ))}

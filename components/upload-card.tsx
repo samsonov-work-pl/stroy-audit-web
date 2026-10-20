@@ -28,6 +28,7 @@ import { useSubmitCooldown } from '@/hooks/use-submit-cooldown'
 import { PremiumUpsell } from '@/components/premium-upsell'
 import { ExpressReport } from '@/components/express-report'
 import { DEVELOPER_EXAMPLE_REPORT_URL, ExampleReportLink } from '@/components/example-report-link'
+import { loadAuditChoice, TIER_EVENT, TIER_FRAME_COLOR, type AuditTier } from '@/lib/audit-tier'
 import { buildAuditTeaser } from '@/lib/audit-teaser'
 import {
   clearStoredAudit,
@@ -127,6 +128,14 @@ export function UploadCard() {
   const cooldown = useSubmitCooldown(SUBMIT_COOLDOWN_MS)
   const [floodWarning, setFloodWarning] = useState(false)
   const [missingPaidProject, setMissingPaidProject] = useState(false)
+  const [auditChoice, setAuditChoice] = useState<AuditTier | null>(null)
+
+  useEffect(() => {
+    const syncChoice = () => setAuditChoice(loadAuditChoice())
+    syncChoice()
+    window.addEventListener(TIER_EVENT, syncChoice)
+    return () => window.removeEventListener(TIER_EVENT, syncChoice)
+  }, [])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -314,7 +323,8 @@ export function UploadCard() {
         id="upload"
         onSubmit={handleSubmit}
         aria-busy={submitting}
-        className={cn(cardClass, 'flex scroll-mt-24 flex-col gap-4 p-5 text-left sm:p-6')}
+        className={cn(cardClass, 'flex scroll-mt-24 flex-col gap-4 p-5 text-left transition-colors sm:p-6')}
+        style={auditChoice ? { borderColor: TIER_FRAME_COLOR[auditChoice] } : undefined}
         aria-label="Загрузка проекта для аудита"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">

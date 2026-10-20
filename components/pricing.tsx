@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import { Reveal } from '@/components/reveal'
 import { SectionHeading } from '@/components/how-it-works'
-import { loadStoredTier, saveSelectedTier, TIER_EVENT, type PaidTier } from '@/lib/audit-tier'
+import { loadAuditChoice, saveAuditChoice, TIER_EVENT, TIER_FRAME_COLOR, type AuditTier } from '@/lib/audit-tier'
 import { cn } from '@/lib/utils'
 
 type Currency = 'BYN' | 'RUB' | 'KZT'
@@ -20,7 +20,7 @@ const currencies: { id: Currency; symbol: string; country: string }[] = [
 
 const plans: {
   name: string
-  tier: PaidTier | null
+  tier: AuditTier
   period: string
   prices: Record<Currency, string>
   features: string[]
@@ -28,7 +28,7 @@ const plans: {
 }[] = [
   {
     name: 'Экспресс',
-    tier: null,
+    tier: 'express',
     period: 'за один проект',
     prices: { BYN: 'бесплатно', RUB: 'бесплатно', KZT: 'бесплатно' },
     features: [
@@ -104,10 +104,10 @@ function Flag({ currency }: { currency: Currency }) {
 }
 
 export function Pricing() {
-  const [selected, setSelected] = useState<PaidTier | null>(null)
+  const [selected, setSelected] = useState<AuditTier | null>(null)
 
   useEffect(() => {
-    const sync = () => setSelected(loadStoredTier())
+    const sync = () => setSelected(loadAuditChoice())
     sync()
     window.addEventListener(TIER_EVENT, sync)
     return () => window.removeEventListener(TIER_EVENT, sync)
@@ -128,6 +128,7 @@ export function Pricing() {
                     ? 'border-foreground shadow-[0_20px_50px_-20px_rgba(0,0,0,0.25)]'
                     : 'border-border hover:border-foreground/20 hover:shadow-[0_12px_32px_-12px_rgba(0,0,0,0.15)]',
                 )}
+                style={selected === plan.tier ? { borderColor: TIER_FRAME_COLOR[plan.tier] } : undefined}
               >
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-base font-bold tracking-tight">{plan.name}</h3>
@@ -174,18 +175,17 @@ export function Pricing() {
 
                 <a
                   href="#upload"
-                  aria-pressed={plan.tier !== null && selected === plan.tier}
-                  onClick={() => {
-                    if (plan.tier) saveSelectedTier(plan.tier)
-                  }}
+                  aria-pressed={selected === plan.tier}
+                  onClick={() => saveAuditChoice(plan.tier)}
                   className={cn(
-                    'inline-flex h-11 items-center justify-center rounded-lg text-sm font-semibold transition-all active:scale-[0.99]',
+                    'inline-flex h-11 items-center justify-center rounded-lg border text-sm font-semibold transition-all active:scale-[0.99]',
                     plan.popular
-                      ? 'bg-primary text-primary-foreground hover:bg-black/85'
-                      : 'border border-border bg-card text-foreground hover:border-foreground',
+                      ? 'border-transparent bg-primary text-primary-foreground hover:bg-black/85'
+                      : 'border-border bg-card text-foreground hover:border-foreground',
                   )}
+                  style={selected === plan.tier ? { borderColor: TIER_FRAME_COLOR[plan.tier] } : undefined}
                 >
-                  {plan.tier && selected === plan.tier ? 'Выбран' : 'Выбрать'}
+                  {selected === plan.tier ? 'Выбран' : 'Выбрать'}
                   <span className="sr-only"> тариф «{plan.name}»</span>
                 </a>
               </div>
