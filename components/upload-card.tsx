@@ -27,7 +27,7 @@ import { JurisdictionBadge, JurisdictionPicker } from '@/components/jurisdiction
 import { useSubmitCooldown } from '@/hooks/use-submit-cooldown'
 import { PremiumUpsell } from '@/components/premium-upsell'
 import { ExpressReport } from '@/components/express-report'
-import { ExampleReportLink } from '@/components/example-report-link'
+import { DEVELOPER_EXAMPLE_REPORT_URL, ExampleReportLink } from '@/components/example-report-link'
 import { buildAuditTeaser } from '@/lib/audit-teaser'
 import {
   clearStoredAudit,
@@ -526,7 +526,12 @@ export function UploadCard() {
           )}
         </button>
 
-        <ExampleReportLink />
+        <div className="flex flex-col gap-2">
+          <ExampleReportLink className="w-full" />
+          <ExampleReportLink href={DEVELOPER_EXAMPLE_REPORT_URL} className="w-full">
+            Посмотреть пример отчёта для застройщиков
+          </ExampleReportLink>
+        </div>
 
         {submitting ? (
           <div className="flex flex-col gap-2" role="status">
