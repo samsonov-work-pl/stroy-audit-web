@@ -1,10 +1,10 @@
 import Link from 'next/link'
 
 const links = [
-  { href: '#how', label: 'Как это работает' },
-  { href: '#report', label: 'Пример отчёта' },
-  { href: '#pricing', label: 'Тарифы' },
-  { href: '#contacts', label: 'Контакты' },
+  { href: '/#how', label: 'Как это работает' },
+  { href: '/#report', label: 'Пример отчёта' },
+  { href: '/#pricing', label: 'Тарифы' },
+  { href: '/#contacts', label: 'Контакты' },
 ]
 
 export function Logo() {
@@ -44,7 +44,7 @@ export function SiteHeader() {
         </nav>
         <div className="flex items-center gap-2">
           <a
-            href="#upload"
+            href="/#upload"
             className="inline-flex h-9 items-center whitespace-nowrap rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition-all hover:-translate-y-px hover:bg-black/85"
           >
             Начать аудит

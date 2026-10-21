@@ -27,6 +27,19 @@ export const payments = pgTable('payments', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+/** Temporary report and token chat. Source files are never stored here. */
+export const sessions = pgTable('sessions', {
+  token: text('token').primaryKey(),
+  email: text('email').notNull(),
+  reportContent: text('report_content').notNull(),
+  chatHistory: jsonb('chat_history').notNull().default([]),
+  messageCount: integer('message_count').notNull().default(0),
+  tier: text('tier').notNull(),
+  jurisdiction: text('jurisdiction'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const chatMessages = pgTable('chat_messages', {
   id: text('id').primaryKey(),
   projectId: text('project_id').notNull(),

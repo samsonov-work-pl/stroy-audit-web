@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useId, useRef } from 'react'
 import { ShieldAlert, X } from 'lucide-react'
 
@@ -44,7 +45,7 @@ export function ConsentDialog({ open, onAccept, onClose }: ConsentDialogProps) {
             <h2 id={titleId} className="text-base font-bold text-balance">
               Условия обработки данных и дисклеймер
             </h2>
-            <p className="text-xs text-muted-foreground">Редакция от 12.10.2026</p>
+            <p className="text-xs text-muted-foreground">Редакция от 21.10.2026</p>
           </div>
           <button
             type="button"
@@ -73,9 +74,14 @@ export function ConsentDialog({ open, onAccept, onClose }: ConsentDialogProps) {
           <p>
             <span className="font-semibold text-foreground">Обработка данных.</span> Загружая файл,
             вы подтверждаете, что имеете право на его передачу, и даёте согласие на обработку
-            указанного email и содержимого документа в целях проведения аудита в соответствии с
-            Федеральным законом № 152-ФЗ «О персональных данных». Файлы хранятся в зашифрованном
-            виде и удаляются через 30 дней.
+            указанного email и содержимого документа в целях проведения аудита. Для пользователей из
+            России, Беларуси и Казахстана обработка ведётся по закону страны пользователя. Подробности
+            — в{' '}
+            <Link href="/privacy" className="font-medium text-foreground underline underline-offset-2">
+              Политике конфиденциальности
+            </Link>
+            . Исходные файлы удаляются сразу после обработки и не хранятся на сервере. Отчёт и чат
+            по разовому тарифу хранятся до 14 дней.
           </p>
         </div>
 

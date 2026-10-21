@@ -18,7 +18,13 @@ import {
 import { cn } from '@/lib/utils'
 import { isRealPdfUrl, showReportInWindow } from '@/lib/report-pdf'
 
-type DeepResult = { pdfUrl: string | null; report: string | null; chatUrl?: string | null }
+type DeepResult = {
+  pdfUrl: string | null
+  report: string | null
+  chatUrl?: string | null
+  emailSent?: boolean
+  activeDays?: number
+}
 
 const CHAT_API_URL = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, '') || ''
 const CHAT_SESSION_KEY = 'stroyaudit-chat:'
@@ -363,10 +369,37 @@ export function PremiumUpsell({
         setState({ kind: 'error', message: 'Сервер не вернул текст отчёта. Попробуйте ещё раз.' })
         return
       }
-      const chatUrl = report ? (await createChatLink(report, current.jurisdiction, current.email)).url : null
+      let chatUrl: string | null = null
+      let emailSent = false
+      let activeDays = 14
+      if (report) {
+        try {
+          const sessionRes = await fetch('/api/report/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              report,
+              email: current.email,
+              jurisdiction: current.jurisdiction,
+              tier: loadSelectedTier(),
+            }),
+          })
+          const session = (await sessionRes.json().catch(() => null)) as {
+            url?: unknown
+            emailSent?: unknown
+            days?: unknown
+          } | null
+          if (sessionRes.ok && typeof session?.url === 'string') {
+            chatUrl = session.url
+            emailSent = session.emailSent === true
+            activeDays = typeof session.days === 'number' ? session.days : 14
+          }
+        } catch {}
+        if (!chatUrl) chatUrl = (await createChatLink(report, current.jurisdiction, current.email)).url
+      }
       delivered.current = true
       onFullReportRef.current({ pdfUrl, report, chatUrl })
-      setState({ kind: 'done', pdfUrl, report, chatUrl })
+      setState({ kind: 'done', pdfUrl, report, chatUrl, emailSent, activeDays })
     } catch {
       generating.current = false
       releaseReportGeneration()
@@ -464,7 +497,13 @@ export function PremiumUpsell({
 
   function handleChatCreated(chatUrl: string) {
     if (state.kind !== 'done') return
-    const next = { pdfUrl: state.pdfUrl, report: state.report, chatUrl }
+    const next = {
+      pdfUrl: state.pdfUrl,
+      report: state.report,
+      chatUrl,
+      emailSent: state.emailSent,
+      activeDays: state.activeDays,
+    }
     onFullReport(next)
     setState({ kind: 'done', ...next })
   }
@@ -647,8 +686,9 @@ function DeepAuditDialog({
               Подробный аудит готов
             </p>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              Отчёт на этой странице. Его можно открыть отдельно и сохранить в PDF. Отчёт для{' '}
-              <span className="font-medium text-foreground">{email}</span>.
+              {state.emailSent
+                ? `Ваш отчет готов и отправлен на ваш email. Ссылка на чат активна в течение ${state.activeDays ?? 14} дней.`
+                : `Ваш отчет готов. Ссылка на чат активна в течение ${state.activeDays ?? 14} дней. Письмо на ${email} не отправилось — откройте чат по ссылке ниже.`}
             </p>
             <p className="text-xs leading-relaxed text-muted-foreground">
               Остались вопросы по замечаниям? Обсудите их в чате по вашему отчёту: ассистент знает ваш отчёт

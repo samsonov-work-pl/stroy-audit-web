@@ -23,6 +23,13 @@ export function Hero() {
             найдет скрытые ошибки, сложные нюансы и поможет сберечь финансы и нервы всех участников
             стройки.
           </p>
+          <p
+            className="animate-fade-up max-w-3xl rounded-full border border-border bg-card px-4 py-2 text-sm leading-snug text-foreground"
+            style={{ animationDelay: '260ms' }}
+          >
+            Сервис не собирает персональные данные, кроме email для отправки отчёта. Чертежи и сметы
+            удаляются автоматически, личные кабинеты и пароли не требуются.
+          </p>
         </div>
         <div className="animate-fade-up w-full max-w-xl" style={{ animationDelay: '320ms' }}>
           <UploadCard />

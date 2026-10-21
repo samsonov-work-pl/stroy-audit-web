@@ -54,7 +54,7 @@ function parseRetryAfterMs(header: string | null) {
 }
 const MAX_SIZE_MB = 50
 const REQUEST_TIMEOUT_MS = 180_000
-const CONSENT_VERSION = '2026-10-12'
+const CONSENT_VERSION = '2026-10-21'
 
 type Status = 'idle' | 'submitting' | 'success' | 'error'
 
@@ -554,7 +554,7 @@ export function UploadCard() {
           </div>
         ) : (
           <p className="text-center text-xs text-muted-foreground">
-            Файлы шифруются и удаляются через 30 дней
+            Исходные файлы удаляются сразу после обработки и не хранятся на сервере
           </p>
         )}
       </form>
