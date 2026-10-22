@@ -11,6 +11,16 @@ export const projects = pgTable('projects', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+/** Developer plan. There is no user account: Lava.top identifies the subscription. */
+export const subscriptions = pgTable('subscriptions', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull(),
+  subscriptionId: text('subscription_id').notNull().unique(),
+  status: text('status').notNull(),
+  currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const payments = pgTable('payments', {
   id: text('id').primaryKey(),
   eventId: text('event_id').notNull().unique(),

@@ -19,8 +19,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 try:
     from sessions import router as sessions_router
+    import subscriptions as subscription_store
 except ImportError:
     from backend.sessions import router as sessions_router
+    from backend import subscriptions as subscription_store
 
 load_dotenv()
 
@@ -399,6 +401,9 @@ async def lava_webhook(request: Request) -> dict[str, Any]:
     sqlite_new = record_sqlite(event, status, payload)
     pg_new = record_postgres(event, status, payload)
     created = sqlite_new and pg_new
+    subscription_store.apply(event, status, payload)
+    if created and event["plan"] == "developers" and event_type == "payment.success":
+        subscription_store.send_welcome(event, payload)
 
     log.info(
         "Lava %s plan=%s email=%s contract=%s duplicate=%s",
@@ -417,3 +422,28 @@ async def lava_webhook(request: Request) -> dict[str, Any]:
         "email": event["email"],
         "contract_id": event["contract_id"],
     }
+
+
+@app.post("/api/subscriptions/cancel")
+async def cancel_subscription(request: Request) -> dict[str, Any]:
+    """Отмена поддержкой: тот же X-Api-Key, что у вебхука Lava.top. Аккаунт не нужен."""
+    raw_body = await request.body()
+    authenticate(request, raw_body)
+    try:
+        payload = json.loads(raw_body.decode("utf-8") or "{}")
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise HTTPException(status_code=400, detail="Некорректный JSON.") from None
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Ожидался объект JSON.")
+    email = as_text(payload.get("email"))
+    subscription_id = as_text(payload.get("subscription_id"))
+    if email:
+        email = email.lower()
+    if not email and not subscription_id:
+        raise HTTPException(status_code=400, detail="Нужен email или subscription_id.")
+    try:
+        updated = subscription_store.cancel_by_support(email, subscription_id)
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    log.info("Поддержка отменила подписку email=%s id=%s rows=%s", email, subscription_id, updated)
+    return {"ok": True, "updated": updated, "status": "cancelled"}
