@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { UploadCard } from '@/components/upload-card'
 
 export function Hero() {
@@ -23,16 +24,19 @@ export function Hero() {
             найдет скрытые ошибки, сложные нюансы и поможет сберечь финансы и нервы всех участников
             стройки.
           </p>
-          <p
-            className="animate-fade-up max-w-3xl rounded-full border border-border bg-card px-4 py-2 text-sm leading-snug text-foreground"
-            style={{ animationDelay: '260ms' }}
-          >
-            Сервис не собирает персональные данные, кроме email для отправки отчёта. Чертежи и сметы
-            удаляются автоматически, личные кабинеты и пароли не требуются.
-          </p>
         </div>
-        <div className="animate-fade-up w-full max-w-xl" style={{ animationDelay: '320ms' }}>
+        <div
+          className="animate-fade-up flex w-full max-w-xl flex-col gap-4"
+          style={{ animationDelay: '320ms' }}
+        >
           <UploadCard />
+          <p className="w-full rounded-2xl border border-border bg-card px-4 py-2.5 text-center text-sm leading-snug text-foreground">
+            Сервис обрабатывает минимально необходимый объём персональных данных. Чертежи и сметы
+            удаляются автоматически, личные кабинеты и пароли не требуются. Подробности — в{' '}
+            <Link href="/privacy" className="font-medium underline underline-offset-2">
+              Политике конфиденциальности
+            </Link>.
+          </p>
         </div>
       </div>
     </section>

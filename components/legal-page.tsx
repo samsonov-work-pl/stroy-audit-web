@@ -16,10 +16,12 @@ export function ExternalLink({ href, children }: { href: string; children: React
 export function LegalPage({
   title,
   current,
+  updated = LEGAL_UPDATED,
   children,
 }: {
   title: string
   current: (typeof legalDocuments)[number]['href']
+  updated?: string
   children: ReactNode
 }) {
   const others = legalDocuments.filter((doc) => doc.href !== current)
@@ -36,7 +38,7 @@ export function LegalPage({
             <h1 className="text-balance text-4xl font-extrabold leading-[1.08] tracking-[-0.03em]">
               {title}
             </h1>
-            <p className="text-sm text-muted-foreground">Редакция от {LEGAL_UPDATED}</p>
+            <p className="text-sm text-muted-foreground">Редакция от {updated}</p>
           </header>
           <div className="flex flex-col gap-4 text-sm leading-relaxed text-muted-foreground [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-foreground [&_li]:pl-1 [&_ol]:flex [&_ol]:list-decimal [&_ol]:flex-col [&_ol]:gap-2 [&_ol]:pl-5 [&_strong]:font-semibold [&_strong]:text-foreground [&_ul]:flex [&_ul]:list-disc [&_ul]:flex-col [&_ul]:gap-2 [&_ul]:pl-5">
             {children}
