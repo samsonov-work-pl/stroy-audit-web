@@ -242,22 +242,6 @@ function pickString(data: unknown, keys: string[]) {
   return null
 }
 
-function paymentJustSucceeded() {
-  const params = new URLSearchParams(window.location.search)
-  return params.get('payment') === 'success' || params.get('status') === 'success'
-}
-
-function clearPaymentSuccess() {
-  loadSelectedTier()
-  const url = new URL(window.location.href)
-  url.searchParams.delete('payment')
-  if (url.searchParams.get('status') === 'success') url.searchParams.delete('status')
-  url.searchParams.delete('invoiceId')
-  url.searchParams.delete('tier')
-  const query = url.searchParams.toString()
-  window.history.replaceState(null, '', url.pathname + (query ? `?${query}` : '') + url.hash)
-}
-
 const PAY_BUTTON_CLASS =
   'inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/85'
 
@@ -314,7 +298,6 @@ export function PremiumUpsell({
   const widgetId = lavaWidgetId(tier)
   const generating = useRef(false)
   const delivered = useRef(Boolean(initialDeep))
-  const paidBaseline = useRef<boolean | null>(null)
   const requestRef = useRef(request)
   requestRef.current = request
   const onFullReportRef = useRef(onFullReport)
@@ -426,24 +409,13 @@ export function PremiumUpsell({
   )
 
   useEffect(() => {
-    if (!paymentJustSucceeded()) return
-    const paid = loadSelectedTier()
-    publishPaymentSuccess(paid)
-    if (initialDeep || delivered.current) {
-      clearPaymentSuccess()
-      return
-    }
-    if (!request.file) return
-    clearPaymentSuccess()
-    unlockPaidReport(paid)
-  }, [initialDeep, request.file, unlockPaidReport])
-
-  useEffect(() => {
     const onPaid = (paid: PaidTier) => unlockPaidReport(paid)
     const onMessage = (event: MessageEvent) => {
       const paid = paymentSuccessFromMessage(event)
-      if (paid === true) onPaid(loadSelectedTier())
-      else if (paid) onPaid(paid)
+      if (!paid) return
+      const selected = paid === true ? loadSelectedTier() : paid
+      if (event.origin !== window.location.origin) publishPaymentSuccess(selected)
+      onPaid(selected)
     }
     const onStorage = (event: StorageEvent) => {
       if (event.key !== PAYMENT_SIGNAL_KEY) return
@@ -466,34 +438,6 @@ export function PremiumUpsell({
       channel?.close()
     }
   }, [unlockPaidReport])
-
-  useEffect(() => {
-    if (!payOpen) return
-    const email = request.email.trim()
-    if (!email) return
-    let stopped = false
-    paidBaseline.current = null
-    const watchUntil = Date.now() + 3 * 60 * 1000
-    async function lookForPayment() {
-      if (stopped || Date.now() > watchUntil || delivered.current) return
-      try {
-        const res = await fetch(`/api/payments/status?email=${encodeURIComponent(email)}`)
-        const data = (await res.json().catch(() => null)) as { paid?: unknown } | null
-        const paid = data?.paid === true
-        if (paidBaseline.current === null) {
-          paidBaseline.current = paid
-          return
-        }
-        if (!paidBaseline.current && paid) unlockPaidReport(loadSelectedTier())
-      } catch {}
-    }
-    void lookForPayment()
-    const timer = window.setInterval(() => void lookForPayment(), 4000)
-    return () => {
-      stopped = true
-      window.clearInterval(timer)
-    }
-  }, [payOpen, request.email, unlockPaidReport])
 
   function handleChatCreated(chatUrl: string) {
     if (state.kind !== 'done') return
@@ -803,7 +747,7 @@ function LavaWidgetDialog({
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border bg-card p-0 text-foreground shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-sm"
+      className="m-auto w-[calc(100%-2rem)] max-w-[540px] rounded-2xl border bg-card p-0 text-foreground shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-sm"
       style={{ borderColor: TIER_FRAME_COLOR[tier] }}
     >
       <div className="flex flex-col gap-4 p-5 text-left sm:p-6">
@@ -813,7 +757,7 @@ function LavaWidgetDialog({
               {tier === 'developer' ? 'Оплата отчёта для застройщиков' : 'Оплата полного отчёта'}
             </h2>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              Оплата проходит в окне на этой странице. После неё подробный отчёт откроется здесь же.
+              Кнопка Lava.top остаётся на этой странице. После оплаты подробный отчёт откроется здесь же.
             </p>
           </div>
           <button
@@ -826,19 +770,26 @@ function LavaWidgetDialog({
           </button>
         </div>
         {widgetId ? (
-          <iframe
-            title="Оплата Lava.top"
-            src={lavaWidgetSrc(widgetId)}
-            width={260}
-            height={80}
-            referrerPolicy="origin"
-            className="mx-auto block border-0"
-          />
+          <div className="overflow-x-auto">
+            <iframe
+              title="lava.top"
+              src={lavaWidgetSrc(widgetId)}
+              width={500}
+              height={50}
+              referrerPolicy="origin"
+              className="mx-auto block border-0"
+              style={{ border: 'none' }}
+            />
+          </div>
         ) : (
           <p role="alert" className="text-sm text-warning">
-            Виджет этого тарифа ещё не подключён. Создайте Web-Widget в кабинете Lava.top для домена сайта.
+            Для этого тарифа нужен свой Web-Widget. В кабинете Lava.top сгенерируйте код и вставьте его UUID в
+            переменную {tier === 'developer' ? 'NEXT_PUBLIC_LAVA_WIDGET_DEVELOPER' : 'NEXT_PUBLIC_LAVA_WIDGET_FULL'}.
           </p>
         )}
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Кнопка начнёт принимать оплату после одобрения домена stroy-audit-web.vercel.app.
+        </p>
       </div>
     </dialog>
   )

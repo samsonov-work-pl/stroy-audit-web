@@ -9,7 +9,7 @@ export const MAX_USER_MESSAGES = 60
 export const MAX_REPORT_CHARS = 200_000
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,64}$/
 
-/** Until the lava.top webhook confirms payments, projects are auto-marked as paid only in test mode. */
+/** Outside production, or with CHAT_TEST_MODE, a project is treated as paid without a Lava.top widget. */
 export function isChatTestMode() {
   const flag = (process.env.CHAT_TEST_MODE ?? '').trim().toLowerCase()
   return process.env.NODE_ENV !== 'production' || flag === 'true' || flag === '1'

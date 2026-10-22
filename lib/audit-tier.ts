@@ -23,10 +23,6 @@ export function isAuditTier(value: unknown): value is AuditTier {
   return value === 'express' || isPaidTier(value)
 }
 
-export function paymentSuccessUrl(origin: string, tier: PaidTier) {
-  return `${origin.replace(/\/$/, '')}/?payment=success&tier=${tier}`
-}
-
 export function saveAuditChoice(tier: AuditTier) {
   if (typeof window === 'undefined') return
   try {
