@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { CheckCircle2, ExternalLink, Loader2, Lock, MessagesSquare, Sparkles, X } from 'lucide-react'
+import { DEVELOPER_EXAMPLE_REPORT_URL, ExampleReportLink } from '@/components/example-report-link'
 import { useRubRates } from '@/components/fx-rates'
 import { getJurisdiction, type Jurisdiction } from '@/components/jurisdiction-provider'
 import { isPaidTier, loadSelectedTier, saveSelectedTier, TIER_EVENT, TIER_FRAME_COLOR, type PaidTier } from '@/lib/audit-tier'
@@ -245,7 +246,7 @@ function TierPayButton({
   const tariffName = tier === 'full' ? 'полный отчёт' : 'отчёт для застройщиков'
   return (
     <div
-      className="inline-flex h-11 items-center justify-center gap-1 rounded-lg border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-background/90"
+      className="inline-flex h-11 w-full items-center justify-center gap-1 rounded-lg border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-background/90"
       style={{ borderColor: TIER_FRAME_COLOR[tier] }}
       aria-label={label}
     >
@@ -503,13 +504,21 @@ export function PremiumUpsell({
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 flex-col gap-2">
-            <TierPayButton tier="full" label="Получить полный отчёт" onPay={() => openPayment('full')} />
-            <TierPayButton
-              tier="developer"
-              label="Получить отчёт для застройщиков"
-              onPay={() => openPayment('developer')}
-            />
+          <div className="flex shrink-0 flex-col gap-3">
+            <div className="flex flex-col items-stretch gap-1.5">
+              <TierPayButton tier="full" label="Получить полный отчёт" onPay={() => openPayment('full')} />
+              <ExampleReportLink tone="onDark">Пример полного отчёта</ExampleReportLink>
+            </div>
+            <div className="flex flex-col items-stretch gap-1.5">
+              <TierPayButton
+                tier="developer"
+                label="Получить отчёт для застройщиков"
+                onPay={() => openPayment('developer')}
+              />
+              <ExampleReportLink tone="onDark" href={DEVELOPER_EXAMPLE_REPORT_URL}>
+                Пример отчёта для застройщиков
+              </ExampleReportLink>
+            </div>
           </div>
         </div>
       </div>
@@ -762,7 +771,7 @@ function LavaWidgetDialog({
               {tier === 'developer' ? 'Оплата отчёта для застройщиков' : 'Оплата полного отчёта'}
             </h2>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              Кнопка Lava.top остаётся на этой странице. После оплаты подробный отчёт откроется здесь же.
+              После оплаты подробный отчёт откроется здесь же.
             </p>
           </div>
           <button
@@ -775,14 +784,14 @@ function LavaWidgetDialog({
           </button>
         </div>
         {widgetId ? (
-          <div className="overflow-x-auto">
+          <div className="flex justify-center">
             <iframe
               title="lava.top"
               src={lavaWidgetSrc(widgetId)}
-              width={500}
+              width={300}
               height={50}
               referrerPolicy="origin"
-              className="mx-auto block border-0"
+              className="block max-w-full border-0"
               style={{ border: 'none' }}
             />
           </div>

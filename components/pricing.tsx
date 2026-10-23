@@ -157,7 +157,7 @@ export function Pricing() {
           ))}
         </ul>
 
-        <div className="flex max-w-3xl flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
+        <div className="mx-auto flex max-w-3xl flex-col gap-2 text-center text-sm leading-relaxed text-muted-foreground">
           <p>
             Оплата принимается банковскими картами. Списание происходит в российских рублях (RUB) по курсу вашего
             банка-эмитента.
