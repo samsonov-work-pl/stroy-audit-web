@@ -787,9 +787,6 @@ function LavaWidgetDialog({
             переменную {tier === 'developer' ? 'NEXT_PUBLIC_LAVA_WIDGET_DEVELOPER' : 'NEXT_PUBLIC_LAVA_WIDGET_FULL'}.
           </p>
         )}
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Кнопка начнёт принимать оплату после одобрения домена stroy-audit-web.vercel.app.
-        </p>
       </div>
     </dialog>
   )
