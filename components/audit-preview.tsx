@@ -12,7 +12,7 @@ export function AuditPreview() {
     <section id="report" className="scroll-mt-16 border-b border-border">
       <div className="mx-auto flex max-w-6xl flex-col gap-14 px-5 py-24 md:py-32">
         <SectionHeading
-          eyebrow="Пример отчёта"
+          eyebrow="Нормативы"
           title="Каждое замечание — со ссылкой на норму и листом чертежа"
         />
 

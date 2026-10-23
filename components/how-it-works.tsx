@@ -27,11 +27,13 @@ const steps = [
 export function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
     <Reveal className="flex max-w-3xl flex-col gap-4">
-      <span className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
-        {eyebrow}
-      </span>
-      <h2 className="text-balance text-4xl font-extrabold leading-[1.08] tracking-[-0.03em] sm:text-5xl">
-        {title}
+      <h2 className="flex flex-col gap-4">
+        <span className="font-mono text-xs font-normal uppercase tracking-[0.18em] text-muted-foreground">
+          {eyebrow}
+        </span>
+        <span className="text-balance text-4xl font-extrabold leading-[1.08] tracking-[-0.03em] sm:text-5xl">
+          {title}
+        </span>
       </h2>
     </Reveal>
   )

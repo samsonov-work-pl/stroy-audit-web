@@ -1,6 +1,8 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { JetBrains_Mono, Manrope } from 'next/font/google'
+import { StructuredData } from '@/components/structured-data'
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from '@/lib/site'
 import './globals.css'
 
 const currencyFontStack =
@@ -16,9 +18,38 @@ const jetbrains = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'СтройАудит.ai — экспресс-аудит проекта до начала стройки',
-  description:
-    'ИИ-аудит ИЖС за 15 минут: проверка чертежей и сметы на соответствие нормативам вашей страны, поиск скрытых ошибок и оценка влияния на бюджет.',
+  metadataBase: new URL(SITE_URL),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  keywords: [
+    'экспресс-аудит проекта',
+    'проверка сметы',
+    'СН РБ',
+    'СН 4.02.01-2019',
+    'ИЖС',
+  ],
+  openGraph: {
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: `${SITE_URL}/`,
+    siteName: SITE_NAME,
+    locale: 'ru_RU',
+    type: 'website',
+    images: [
+      {
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'СтройАудит.ai — экспресс-проверка проектов и смет ИЖС',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: ['/opengraph-image'],
+  },
   generator: 'v0.app',
   icons: {
     icon: [
@@ -56,6 +87,7 @@ export default function RootLayout({
       style={{ '--font-currency': currencyFontStack } as React.CSSProperties}
     >
       <body className="font-sans antialiased">
+        <StructuredData />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
