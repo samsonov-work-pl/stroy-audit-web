@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { CheckCircle2, ExternalLink, Loader2, Lock, MessagesSquare, Sparkles, X } from 'lucide-react'
+import { useRubRates } from '@/components/fx-rates'
 import { getJurisdiction, type Jurisdiction } from '@/components/jurisdiction-provider'
 import { isPaidTier, loadSelectedTier, saveSelectedTier, TIER_EVENT, TIER_FRAME_COLOR, type PaidTier } from '@/lib/audit-tier'
 import {
@@ -15,6 +16,7 @@ import {
   publishPaymentSuccess,
   releaseReportGeneration,
 } from '@/lib/lava-widget'
+import { currencyFont, formatGrouped, referenceAmounts, TARIFF_RUB } from '@/lib/fx'
 import { cn } from '@/lib/utils'
 import { isRealPdfUrl, showReportInWindow } from '@/lib/report-pdf'
 
@@ -191,20 +193,6 @@ function OpenReportButton({
   )
 }
 
-const DEEP_PRICE: Record<Jurisdiction, string> = {
-  russia: '7 900 ₽',
-  belarus: '249 BYN',
-  kazakhstan: '39 900 ₸',
-  eurocodes: '7 900 ₽',
-}
-
-const DEVELOPER_PRICE: Record<Jurisdiction, string> = {
-  russia: '29 900 ₽',
-  belarus: '899 BYN',
-  kazakhstan: '149 900 ₸',
-  eurocodes: '29 900 ₽',
-}
-
 const PRO_FEATURES = [
   'Все найденные замечания, а не только топ-3',
   'Ссылки на конкретные пункты норм',
@@ -293,7 +281,9 @@ export function PremiumUpsell({
   const [state, setState] = useState<DeepState>(
     initialDeep ? { kind: 'done', ...initialDeep } : { kind: 'idle' },
   )
-  const price = (tier === 'developer' ? DEVELOPER_PRICE : DEEP_PRICE)[request.jurisdiction]
+  const amountRub = tier === 'developer' ? TARIFF_RUB.developer : TARIFF_RUB.full
+  const rates = useRubRates()
+  const reference = rates ? referenceAmounts(amountRub, rates) : null
   const features = tier === 'developer' ? DEVELOPER_FEATURES : PRO_FEATURES
   const widgetId = lavaWidgetId(tier)
   const generating = useRef(false)
@@ -530,7 +520,8 @@ export function PremiumUpsell({
         onClose={() => {
           if (state.kind !== 'submitting') setOpen(false)
         }}
-        price={price}
+        amountRub={amountRub}
+        reference={reference}
         tier={tier}
         features={features}
         email={request.email}
@@ -553,7 +544,8 @@ export function PremiumUpsell({
 function DeepAuditDialog({
   open,
   onClose,
-  price,
+  amountRub,
+  reference,
   tier,
   features,
   email,
@@ -565,7 +557,8 @@ function DeepAuditDialog({
 }: {
   open: boolean
   onClose: () => void
-  price: string
+  amountRub: number
+  reference: { byn: number; kzt: number } | null
   tier: PaidTier
   features: string[]
   email: string
@@ -666,9 +659,21 @@ function DeepAuditDialog({
               ))}
             </ul>
 
-            <div className="flex items-baseline justify-between rounded-lg border border-border bg-background px-4 py-3">
-              <span className="text-sm text-muted-foreground">К оплате</span>
-              <span className="font-mono text-xl font-bold tabular-nums">{price}</span>
+            <div className="flex flex-col gap-1 rounded-lg border border-border bg-background px-4 py-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm text-muted-foreground">К оплате</span>
+                <span className="font-mono text-xl font-bold tabular-nums">
+                  {formatGrouped(amountRub)} <span className={currencyFont}>₽</span>
+                </span>
+              </div>
+              {reference && (
+                <p className="text-right text-xs tabular-nums text-muted-foreground">
+                  ≈ {formatGrouped(reference.byn)} BYN / {formatGrouped(reference.kzt)} <span className={currencyFont}>₸</span>
+                </p>
+              )}
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Списание происходит в российских рублях (RUB) по курсу банка-эмитента.
+              </p>
             </div>
 
             {state.kind === 'error' && (
@@ -700,7 +705,7 @@ function DeepAuditDialog({
               className={cn(PAY_BUTTON_CLASS, 'border')}
               style={{ borderColor: TIER_FRAME_COLOR[tier] }}
             >
-              {`Оплатить ${price}`}
+              Оплатить {formatGrouped(amountRub)} <span className={currencyFont}>₽</span>
             </button>
           )}
           {state.kind === 'submitting' && (

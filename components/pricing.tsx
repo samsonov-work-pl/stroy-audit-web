@@ -2,27 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
+import { useRubRates } from '@/components/fx-rates'
 import { Reveal } from '@/components/reveal'
 import { SectionHeading } from '@/components/how-it-works'
 import { loadAuditChoice, saveAuditChoice, TIER_EVENT, TIER_FRAME_COLOR, type AuditTier } from '@/lib/audit-tier'
+import { currencyFont, formatGrouped, referenceAmounts, TARIFF_RUB } from '@/lib/fx'
 import { cn } from '@/lib/utils'
-
-type Currency = 'BYN' | 'RUB' | 'KZT'
-
-// Manrope and JetBrains Mono lack the ₽/₸ glyphs, so symbols use Noto Sans.
-const currencyFont = 'font-[family-name:var(--font-currency)]'
-
-const currencies: { id: Currency; symbol: string; country: string }[] = [
-  { id: 'RUB', symbol: '₽', country: 'Россия' },
-  { id: 'BYN', symbol: 'BYN', country: 'Беларусь' },
-  { id: 'KZT', symbol: '₸', country: 'Казахстан' },
-]
 
 const plans: {
   name: string
   tier: AuditTier
   period: string
-  prices: Record<Currency, string>
+  amountRub: number
   features: string[]
   popular: boolean
 }[] = [
@@ -30,7 +21,7 @@ const plans: {
     name: 'Экспресс',
     tier: 'express',
     period: 'за один проект',
-    prices: { BYN: 'бесплатно', RUB: 'бесплатно', KZT: 'бесплатно' },
+    amountRub: TARIFF_RUB.express,
     features: [
       'Проверка чертежей по нормам',
       'Наиболее значимые, важные замечания и рекомендации',
@@ -42,7 +33,7 @@ const plans: {
     name: 'Полный аудит',
     tier: 'full',
     period: 'за один проект',
-    prices: { BYN: '249', RUB: '7 900', KZT: '39 900' },
+    amountRub: TARIFF_RUB.full,
     features: [
       'Всё из тарифа «Экспресс»',
       'Все найденные замечания со ссылками на нормы',
@@ -57,7 +48,7 @@ const plans: {
     name: 'Для застройщиков',
     tier: 'developer',
     period: 'в месяц',
-    prices: { BYN: '899', RUB: '29 900', KZT: '149 900' },
+    amountRub: TARIFF_RUB.developer,
     features: [
       'Всё из тарифа «Полный аудит»',
       'Приоритетная обработка',
@@ -71,39 +62,32 @@ const plans: {
   },
 ]
 
-// Emoji flags don't render on Windows, so flags are drawn with CSS.
-function Flag({ currency }: { currency: Currency }) {
-  const base = 'relative h-4 w-6 shrink-0 overflow-hidden rounded-[3px] ring-1 ring-black/10'
-
-  if (currency === 'BYN') {
-    return (
-      <span aria-hidden="true" className={cn(base, 'flex flex-col')}>
-        <span className="flex-[2] bg-[#C8313E]" />
-        <span className="flex-1 bg-[#4AA657]" />
-        <span className="absolute inset-y-0 left-0 w-1 bg-white bg-[repeating-linear-gradient(to_bottom,#C8313E_0_2px,transparent_2px_4px)]" />
-      </span>
-    )
-  }
-
-  if (currency === 'RUB') {
-    return (
-      <span aria-hidden="true" className={cn(base, 'flex flex-col')}>
-        <span className="flex-1 bg-white" />
-        <span className="flex-1 bg-[#0039A6]" />
-        <span className="flex-1 bg-[#D52B1E]" />
-      </span>
-    )
-  }
+function Price({ amountRub }: { amountRub: number }) {
+  const rates = useRubRates()
+  const reference = amountRub > 0 && rates ? referenceAmounts(amountRub, rates) : null
 
   return (
-    <span aria-hidden="true" className={cn(base, 'flex items-center justify-center bg-[#00AFCA]')}>
-      <span className="size-1.5 rounded-full bg-[#FEC50C]" />
-      <span className="absolute inset-y-0 left-0.5 w-0.5 bg-[repeating-linear-gradient(to_bottom,#FEC50C_0_1px,transparent_1px_3px)]" />
-    </span>
+    <div className="flex flex-col gap-1">
+      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        {amountRub === 0 ? (
+          <span className="text-4xl font-extrabold tracking-[-0.03em]">бесплатно</span>
+        ) : (
+          <span className="text-4xl font-extrabold tracking-[-0.03em] tabular-nums">
+            {formatGrouped(amountRub)} <span className={cn(currencyFont, 'font-semibold')}>₽</span>
+          </span>
+        )}
+        {reference && (
+          <span className="text-sm font-semibold tabular-nums text-foreground/70">
+            (≈ {formatGrouped(reference.byn)} BYN / {formatGrouped(reference.kzt)} <span className={currencyFont}>₸</span>)
+          </span>
+        )}
+      </p>
+    </div>
   )
 }
 
 export function Pricing() {
+  const rates = useRubRates()
   const [selected, setSelected] = useState<AuditTier | null>(null)
 
   useEffect(() => {
@@ -140,27 +124,7 @@ export function Pricing() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <dl className="flex flex-col gap-2">
-                    {currencies.map((c, idx) => (
-                      <div key={c.id} className="flex items-center gap-3">
-                        <dt className="flex items-center">
-                          <Flag currency={c.id} />
-                          <span className="sr-only">{c.country}</span>
-                        </dt>
-                        <dd
-                          className={cn(
-                            'font-extrabold tracking-[-0.03em] tabular-nums',
-                            idx === 0 ? 'text-4xl' : 'text-2xl text-foreground/80',
-                          )}
-                        >
-                          {plan.prices[c.id]}{' '}
-                          <span className={cn(currencyFont, 'font-semibold text-muted-foreground')}>
-                            {c.symbol}
-                          </span>
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
+                  <Price amountRub={plan.amountRub} />
                   <p className="text-sm text-muted-foreground">{plan.period}</p>
                 </div>
 
@@ -192,6 +156,16 @@ export function Pricing() {
             </Reveal>
           ))}
         </ul>
+
+        <div className="flex max-w-3xl flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
+          <p>
+            Оплата принимается банковскими картами. Списание происходит в российских рублях (RUB) по курсу вашего
+            банка-эмитента.
+          </p>
+          {rates && (
+            <p>Суммы в BYN и KZT указаны справочно по текущему курсу относительно RUB.</p>
+          )}
+        </div>
       </div>
     </section>
   )
