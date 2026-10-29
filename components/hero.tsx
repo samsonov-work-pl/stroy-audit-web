@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { UploadCard } from '@/components/upload-card'
 
 export function Hero() {
@@ -30,13 +29,6 @@ export function Hero() {
           style={{ animationDelay: '320ms' }}
         >
           <UploadCard />
-          <p className="w-full rounded-2xl border border-border bg-card px-4 py-2.5 text-center text-sm leading-snug text-foreground">
-            Сервис обрабатывает минимально необходимый объём персональных данных. Чертежи и сметы
-            удаляются автоматически, личные кабинеты и пароли не требуются. Подробности — в{' '}
-            <Link href="/privacy" className="font-medium underline underline-offset-2">
-              Политике конфиденциальности
-            </Link>.
-          </p>
         </div>
       </div>
     </section>

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AuditReport } from '@/components/audit-report'
-import { ConsentDialog } from '@/components/consent-dialog'
+import { ConsentAccordion, ConsentDialog } from '@/components/consent-dialog'
 import {
   fetchPromptTemplate,
   getJurisdiction,
@@ -335,6 +335,11 @@ export function UploadCard() {
           <span className="font-mono text-xs text-muted-foreground">до {MAX_SIZE_MB} МБ</span>
         </div>
 
+        <p className="text-center text-sm leading-relaxed text-foreground">
+          Бесплатный экспресс-анализ за считаные минуты: загрузите проект и сразу увидите количество
+          ошибок и первые критические замечания без оплаты и привязки карты.
+        </p>
+
         <div
           onDragOver={(e) => {
             e.preventDefault()
@@ -557,6 +562,8 @@ export function UploadCard() {
             Исходные файлы удаляются сразу после обработки и не хранятся на сервере
           </p>
         )}
+
+        <ConsentAccordion />
       </form>
 
       <ConsentDialog
@@ -651,6 +658,15 @@ function AuditResponse({ result, onReset }: { result: AuditResult; onReset: () =
           deepUrl={DEEP_AUDIT_URL}
           consentVersion={CONSENT_VERSION}
           hiddenCount={teaser?.hiddenCount ?? 0}
+          hiddenCritical={
+            teaser
+              ? Math.max(
+                  0,
+                  teaser.stats.critical -
+                    teaser.shown.filter((issue) => issue.severity === 'critical').length,
+                )
+              : 0
+          }
           initialDeep={result.deep ?? null}
           onFullReport={(deep) => {
             saveDeepReport(deep)

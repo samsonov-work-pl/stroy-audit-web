@@ -2,12 +2,53 @@
 
 import Link from 'next/link'
 import { useEffect, useId, useRef } from 'react'
-import { ShieldAlert, X } from 'lucide-react'
+import { ChevronDown, ShieldAlert, X } from 'lucide-react'
 
 type ConsentDialogProps = {
   open: boolean
   onAccept: () => void
   onClose: () => void
+}
+
+export function ConsentTerms({ className, id }: { className?: string; id?: string }) {
+  return (
+    <div id={id} className={className}>
+      <p>
+        <span className="font-semibold text-foreground">Отказ от ответственности.</span>{' '}
+        Отчёт формируется автоматически с помощью алгоритмов и искусственного интеллекта и носит
+        рекомендательный характер. Он не является экспертизой проектной документации и не
+        заменяет проверку квалифицированным специалистом или государственную экспертизу.
+      </p>
+      <p>
+        Сервис не несёт ответственности за решения, принятые на основании отчёта, а также за
+        возможные неточности и пропущенные замечания.
+      </p>
+      <p>
+        <span className="font-semibold text-foreground">Обработка данных.</span> Загружая файл,
+        вы подтверждаете, что имеете право на его передачу, и даёте согласие на обработку
+        указанного email и содержимого документа в целях проведения аудита. Для пользователей из
+        России, Беларуси и Казахстана обработка ведётся по закону страны пользователя. Подробности
+        — в{' '}
+        <Link href="/privacy" className="font-medium text-foreground underline underline-offset-2">
+          Политике конфиденциальности
+        </Link>
+        . Исходные файлы удаляются сразу после обработки и не хранятся на сервере. Личные кабинеты
+        и пароли не требуются. Отчёт и чат по разовому тарифу хранятся до 14 дней.
+      </p>
+    </div>
+  )
+}
+
+export function ConsentAccordion() {
+  return (
+    <details className="group rounded-lg border border-border bg-background">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-xs font-medium text-muted-foreground [&::-webkit-details-marker]:hidden">
+        О характере отчёта и обработке файлов
+        <ChevronDown className="size-3.5 shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+      </summary>
+      <ConsentTerms className="flex flex-col gap-2 px-3 pb-3 text-xs leading-relaxed text-muted-foreground" />
+    </details>
+  )
 }
 
 export function ConsentDialog({ open, onAccept, onClose }: ConsentDialogProps) {
@@ -57,33 +98,10 @@ export function ConsentDialog({ open, onAccept, onClose }: ConsentDialogProps) {
           </button>
         </div>
 
-        <div
+        <ConsentTerms
           id={descId}
           className="flex max-h-[45vh] flex-col gap-3 overflow-auto rounded-lg border border-border bg-background p-4 text-sm leading-relaxed text-muted-foreground"
-        >
-          <p>
-            <span className="font-semibold text-foreground">Отказ от ответственности.</span>{' '}
-            Отчёт формируется автоматически с помощью алгоритмов и искусственного интеллекта и носит
-            рекомендательный характер. Он не является экспертизой проектной документации и не
-            заменяет проверку квалифицированным специалистом или государственную экспертизу.
-          </p>
-          <p>
-            Сервис не несёт ответственности за решения, принятые на основании отчёта, а также за
-            возможные неточности и пропущенные замечания.
-          </p>
-          <p>
-            <span className="font-semibold text-foreground">Обработка данных.</span> Загружая файл,
-            вы подтверждаете, что имеете право на его передачу, и даёте согласие на обработку
-            указанного email и содержимого документа в целях проведения аудита. Для пользователей из
-            России, Беларуси и Казахстана обработка ведётся по закону страны пользователя. Подробности
-            — в{' '}
-            <Link href="/privacy" className="font-medium text-foreground underline underline-offset-2">
-              Политике конфиденциальности
-            </Link>
-            . Исходные файлы удаляются сразу после обработки и не хранятся на сервере. Отчёт и чат
-            по разовому тарифу хранятся до 14 дней.
-          </p>
-        </div>
+        />
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button

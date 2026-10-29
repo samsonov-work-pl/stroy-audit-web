@@ -18,6 +18,7 @@ import {
   releaseReportGeneration,
 } from '@/lib/lava-widget'
 import { currencyFont, formatGrouped, referenceAmounts, TARIFF_RUB } from '@/lib/fx'
+import { LEGAL_EMAIL, LEGAL_MAILTO } from '@/lib/legal'
 import { cn } from '@/lib/utils'
 import { isRealPdfUrl, showReportInWindow } from '@/lib/report-pdf'
 
@@ -194,12 +195,26 @@ function OpenReportButton({
   )
 }
 
+function remarksWord(count: number) {
+  const mod10 = count % 10
+  const mod100 = count % 100
+  if (mod10 === 1 && mod100 !== 11) return 'замечание'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'замечания'
+  return 'замечаний'
+}
+
+function criticalWord(count: number) {
+  const mod10 = count % 10
+  const mod100 = count % 100
+  return mod10 === 1 && mod100 !== 11 ? 'критическое' : 'критических'
+}
+
 const PRO_FEATURES = [
-  'Все найденные замечания, а не только топ-3',
-  'Ссылки на конкретные пункты норм',
-  'Рекомендации по исправлению',
-  'Отчёт в PDF для подрядчика и экспертизы',
-  'Чат по вашему отчёту: разбор замечаний и приоритетов по проекту',
+  'Дефектная ведомость для пересмотра сметы и правок в проекте',
+  'Все замечания со ссылками на пункты норм, а не только первые',
+  'Многостраничный PDF для обоснованного пересмотра сметы и правок в проекте',
+  'Способы исправления по каждому замечанию',
+  'Чат по отчёту 14 дней',
 ]
 
 const DEVELOPER_FEATURES = [
@@ -250,9 +265,9 @@ function TierPayButton({
       style={{ borderColor: TIER_FRAME_COLOR[tier] }}
       aria-label={label}
     >
-      <button type="button" onClick={onPay} className="inline-flex items-center gap-2">
-        <Sparkles className="size-4" aria-hidden="true" />
-        Получить
+      <button type="button" onClick={onPay} className="inline-flex items-center gap-2 text-left">
+        <Sparkles className="size-4 shrink-0" aria-hidden="true" />
+        {tier === 'full' ? `Открыть за ${formatGrouped(TARIFF_RUB.full)} ₽` : 'Получить'}
       </button>
       <a href="#pricing" className="underline decoration-1 underline-offset-2 hover:opacity-70">
         {tariffName}
@@ -266,6 +281,7 @@ export function PremiumUpsell({
   deepUrl,
   consentVersion,
   hiddenCount,
+  hiddenCritical,
   initialDeep,
   onFullReport,
 }: {
@@ -273,6 +289,7 @@ export function PremiumUpsell({
   deepUrl: string
   consentVersion: string
   hiddenCount: number
+  hiddenCritical: number
   initialDeep: DeepResult | null
   onFullReport: (deep: DeepResult) => void
 }) {
@@ -494,19 +511,34 @@ export function PremiumUpsell({
             </span>
             <div className="flex flex-col gap-1">
               <p className="text-base font-bold text-balance">
-                Получить подробный инженерный аудит и скачать отчёт в PDF
+                {hiddenCount > 0
+                  ? `В вашем проекте скрыто ещё ${hiddenCount} ${remarksWord(hiddenCount)}${
+                      hiddenCritical > 0
+                        ? ` (в том числе ${hiddenCritical} ${criticalWord(hiddenCritical)})`
+                        : ''
+                    }. Открыть весь список и способы исправления за ${formatGrouped(TARIFF_RUB.full)} ₽.`
+                  : `Открыть весь список замечаний и способы исправления за ${formatGrouped(TARIFF_RUB.full)} ₽.`}
               </p>
               <p className="text-xs leading-relaxed text-background/70">
-                {hiddenCount > 0
-                  ? `Ещё ${hiddenCount} замечаний скрыто в экспресс-версии.`
-                  : 'Полный разбор проекта с рекомендациями и ссылками на нормы.'}{' '}
-                {getJurisdiction(request.jurisdiction).standards}
+                На выходе — многостраничный PDF с таблицами и пунктами норм ({getJurisdiction(request.jurisdiction).standards}). Это документ для обоснованного пересмотра сметы и правок в проекте.
+              </p>
+              <p className="text-[11px] leading-relaxed text-background/60">
+                Если в полном отчёте не окажется ни одного замечания со ссылкой на СП или СН — вернём деньги по
+                письму на{' '}
+                <a href={LEGAL_MAILTO} className="underline underline-offset-2">
+                  {LEGAL_EMAIL}
+                </a>
+                .
               </p>
             </div>
           </div>
           <div className="flex shrink-0 flex-col gap-3">
             <div className="flex flex-col items-stretch gap-1.5">
-              <TierPayButton tier="full" label="Получить полный отчёт" onPay={() => openPayment('full')} />
+              <TierPayButton
+                tier="full"
+                label={`Открыть весь список за ${formatGrouped(TARIFF_RUB.full)} ₽`}
+                onPay={() => openPayment('full')}
+              />
               <ExampleReportLink tone="onDark">Пример полного отчёта</ExampleReportLink>
             </div>
             <div className="flex flex-col items-stretch gap-1.5">
@@ -708,14 +740,22 @@ function DeepAuditDialog({
             </button>
           )}
           {state.kind !== 'done' && state.kind !== 'submitting' && (
-            <button
-              type="button"
-              onClick={onPay}
-              className={cn(PAY_BUTTON_CLASS, 'border')}
-              style={{ borderColor: TIER_FRAME_COLOR[tier] }}
-            >
-              Оплатить {formatGrouped(amountRub)} <span className={currencyFont}>₽</span>
-            </button>
+            <div className="flex flex-col gap-1.5 sm:items-end">
+              <button
+                type="button"
+                onClick={onPay}
+                className={cn(PAY_BUTTON_CLASS, 'border')}
+                style={{ borderColor: TIER_FRAME_COLOR[tier] }}
+              >
+                Оплатить {formatGrouped(amountRub)} <span className={currencyFont}>₽</span>
+              </button>
+              {tier === 'full' && (
+                <p className="max-w-xs text-[11px] leading-relaxed text-muted-foreground sm:text-right">
+                  Если в полном отчёте не окажется ни одного замечания со ссылкой на СП или СН — вернём деньги по
+                  письму на {LEGAL_EMAIL}.
+                </p>
+              )}
+            </div>
           )}
           {state.kind === 'submitting' && (
             <button type="button" disabled className="inline-flex h-11 cursor-default items-center justify-center gap-2 rounded-lg bg-success px-4 text-sm font-semibold text-white">
