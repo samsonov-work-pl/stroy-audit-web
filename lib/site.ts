@@ -1,4 +1,4 @@
-export const SITE_URL = 'https://stroy-audit-web.vercel.app'
+export const SITE_URL = 'https://stroyaudit-ai.com'
 export const SITE_NAME = 'СтройАудит.ai'
 export const SITE_TITLE =
   'СтройАудит.ai — Экспресс-проверка проектов и смет ИЖС по нормам СН/СП РБ, РФ и РК'
