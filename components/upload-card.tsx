@@ -532,7 +532,7 @@ export function UploadCard() {
             </>
           ) : (
             <>
-              Запустить экспресс-аудит
+              Запустить бесплатный экспресс-аудит
               <ArrowRight
                 className="size-4 transition-transform group-hover:translate-x-0.5"
                 aria-hidden="true"
