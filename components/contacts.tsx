@@ -4,6 +4,13 @@ import { SiGmail } from 'react-icons/si'
 import { ArrowUpRight } from 'lucide-react'
 import { Reveal } from '@/components/reveal'
 import { SectionHeading } from '@/components/how-it-works'
+import { socialLinks } from '@/lib/social'
+
+const socialIcons: Record<(typeof socialLinks)[number]['name'], IconType> = {
+  LinkedIn: FaLinkedinIn,
+  Instagram: FaInstagram,
+  Telegram: FaTelegram,
+}
 
 const contacts: { name: string; handle: string; href: string; icon: IconType }[] = [
   {
@@ -12,24 +19,12 @@ const contacts: { name: string; handle: string; href: string; icon: IconType }[]
     href: 'mailto:stroyaudit.ai@gmail.com',
     icon: SiGmail,
   },
-  {
-    name: 'LinkedIn',
-    handle: 'СтройАудит.ai',
-    href: 'https://www.linkedin.com/company/stroyaudit-ai',
-    icon: FaLinkedinIn,
-  },
-  {
-    name: 'Instagram',
-    handle: '@stroyaudit.ai',
-    href: 'https://www.instagram.com/stroyaudit.ai',
-    icon: FaInstagram,
-  },
-  {
-    name: 'Telegram',
-    handle: '@stroyaudit_ai',
-    href: 'https://t.me/stroyaudit_ai',
-    icon: FaTelegram,
-  },
+  ...socialLinks.map((link) => ({
+    name: link.name,
+    handle: link.handle,
+    href: link.href,
+    icon: socialIcons[link.name],
+  })),
 ]
 
 export function Contacts() {
