@@ -1,3 +1,5 @@
+import { LEGAL_EMAIL } from '@/lib/legal'
+
 type ReportMail = { to: string; url: string; days: number }
 
 /** Sends the magic link. Returns false when mail is not configured or the provider rejects the letter. */
@@ -22,6 +24,7 @@ export async function sendReportEmail({ to, url, days }: ReportMail) {
       },
       body: JSON.stringify({
         from,
+        reply_to: LEGAL_EMAIL,
         to: [to],
         subject: 'Ваш отчёт СтройАудит.ai',
         text,

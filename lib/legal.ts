@@ -1,5 +1,5 @@
 export const LEGAL_NAME = 'Самсонов Алексей Александрович'
-export const LEGAL_EMAIL = 'stroyaudit.ai@gmail.com'
+export const LEGAL_EMAIL = 'hello@stroyaudit-ai.com'
 export const LEGAL_MAILTO = `mailto:${LEGAL_EMAIL}`
 export const LEGAL_UPDATED = '21 октября 2026 г.'
 

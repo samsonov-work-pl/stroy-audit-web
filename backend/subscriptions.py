@@ -311,7 +311,7 @@ def send_welcome(event: dict[str, Any], payload: dict[str, Any]) -> bool:
         [
             "",
             "Отменить автопродление без личного кабинета можно не позднее чем за 24 часа до списания:",
-            "по ссылке из письма Lava.top или письмом на stroyaudit.ai@gmail.com с этого адреса.",
+            "по ссылке из письма Lava.top или письмом на hello@stroyaudit-ai.com с этого адреса.",
         ]
     )
     return _resend(email, "Подписка «Для застройщиков» — СтройАудит.ai", "\n".join(lines))
@@ -324,7 +324,13 @@ def _resend(to: str, subject: str, text: str) -> bool:
         return False
     sender = (os.getenv("EMAIL_FROM") or "СтройАудит.ai <reports@stroyaudit-ai.com>").strip()
     body = json.dumps(
-        {"from": sender, "to": [to], "subject": subject, "text": text},
+        {
+            "from": sender,
+            "reply_to": "hello@stroyaudit-ai.com",
+            "to": [to],
+            "subject": subject,
+            "text": text,
+        },
         ensure_ascii=False,
     ).encode("utf-8")
     req = urlrequest.Request(

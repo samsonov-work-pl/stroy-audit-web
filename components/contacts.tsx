@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import type { IconType } from 'react-icons'
-import { FaInstagram, FaLinkedinIn, FaTelegram } from 'react-icons/fa6'
-import { SiGmail } from 'react-icons/si'
+import { FaEnvelope, FaInstagram, FaLinkedinIn, FaTelegram } from 'react-icons/fa6'
 import { ArrowUpRight } from 'lucide-react'
 import { Reveal } from '@/components/reveal'
 import { SectionHeading } from '@/components/how-it-works'
@@ -16,10 +15,10 @@ const socialIcons: Record<(typeof socialLinks)[number]['name'], IconType> = {
 
 const contacts: { name: string; handle: string; href: string; icon: IconType }[] = [
   {
-    name: 'Gmail',
-    handle: 'stroyaudit.ai@gmail.com',
-    href: 'mailto:stroyaudit.ai@gmail.com',
-    icon: SiGmail,
+    name: 'Почта',
+    handle: LEGAL_EMAIL,
+    href: LEGAL_MAILTO,
+    icon: FaEnvelope,
   },
   ...socialLinks.map((link) => ({
     name: link.name,

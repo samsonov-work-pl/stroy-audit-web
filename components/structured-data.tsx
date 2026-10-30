@@ -1,5 +1,6 @@
 import { referenceAmounts, TARIFF_RUB, type RubRates } from '@/lib/fx'
 import { getRubRates } from '@/lib/fx-rates'
+import { LEGAL_EMAIL } from '@/lib/legal'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site'
 
 const plans = [
@@ -65,7 +66,7 @@ function softwareApplication(rates: RubRates | null) {
     provider: {
       '@type': 'Person',
       name: 'Самсонов Алексей Александрович',
-      email: 'stroyaudit.ai@gmail.com',
+      email: LEGAL_EMAIL,
     },
   }
 }

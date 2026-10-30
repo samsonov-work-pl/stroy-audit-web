@@ -87,7 +87,13 @@ def send_email(to: str, url: str, days: int) -> bool:
     sender = (os.getenv("EMAIL_FROM") or "СтройАудит.ai <reports@stroyaudit-ai.com>").strip()
     if resend_key:
         payload = json.dumps(
-            {"from": sender, "to": [to], "subject": subject, "text": text},
+            {
+                "from": sender,
+                "reply_to": "hello@stroyaudit-ai.com",
+                "to": [to],
+                "subject": subject,
+                "text": text,
+            },
             ensure_ascii=False,
         ).encode("utf-8")
         req = urlrequest.Request(
@@ -108,6 +114,7 @@ def send_email(to: str, url: str, days: int) -> bool:
         return False
     message = EmailMessage()
     message["From"] = sender
+    message["Reply-To"] = "hello@stroyaudit-ai.com"
     message["To"] = to
     message["Subject"] = subject
     message.set_content(text)
