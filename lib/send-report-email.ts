@@ -3,7 +3,7 @@ type ReportMail = { to: string; url: string; days: number }
 /** Sends the magic link. Returns false when mail is not configured or the provider rejects the letter. */
 export async function sendReportEmail({ to, url, days }: ReportMail) {
   const key = process.env.RESEND_API_KEY?.trim()
-  const from = process.env.EMAIL_FROM?.trim() || 'СтройАудит.ai <reports@stroyaudit.ai>'
+  const from = process.env.EMAIL_FROM?.trim() || 'СтройАудит.ai <reports@stroyaudit-ai.com>'
   if (!key) return false
   const text = [
     'Ваш отчёт СтройАудит.ai готов.',

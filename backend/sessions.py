@@ -84,7 +84,7 @@ def send_email(to: str, url: str, days: int) -> bool:
         "В чате по этому отчёту можно задать до 30 вопросов. Исходные файлы на сервере не хранятся.\n"
     )
     resend_key = (os.getenv("RESEND_API_KEY") or "").strip()
-    sender = (os.getenv("EMAIL_FROM") or "СтройАудит.ai <reports@stroyaudit.ai>").strip()
+    sender = (os.getenv("EMAIL_FROM") or "СтройАудит.ai <reports@stroyaudit-ai.com>").strip()
     if resend_key:
         payload = json.dumps(
             {"from": sender, "to": [to], "subject": subject, "text": text},

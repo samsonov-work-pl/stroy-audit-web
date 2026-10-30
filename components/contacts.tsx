@@ -1,9 +1,11 @@
+import Link from 'next/link'
 import type { IconType } from 'react-icons'
 import { FaInstagram, FaLinkedinIn, FaTelegram } from 'react-icons/fa6'
 import { SiGmail } from 'react-icons/si'
 import { ArrowUpRight } from 'lucide-react'
 import { Reveal } from '@/components/reveal'
 import { SectionHeading } from '@/components/how-it-works'
+import { LEGAL_EMAIL, LEGAL_MAILTO, LEGAL_NAME } from '@/lib/legal'
 import { socialLinks } from '@/lib/social'
 
 const socialIcons: Record<(typeof socialLinks)[number]['name'], IconType> = {
@@ -35,6 +37,19 @@ export function Contacts() {
           <SectionHeading eyebrow="Контакты" title="Остались вопросы? Напишите нам" />
           <p className="max-w-xl text-pretty leading-relaxed text-muted-foreground">
             Отвечаем в рабочее время в течение часа. Выберите удобный способ связи.
+          </p>
+          <p className="max-w-xl text-pretty text-sm leading-relaxed text-foreground">
+            Автор и исполнитель сервиса — {LEGAL_NAME}. СтройАудит.ai автоматически проверяет проект
+            частного дома по нормам выбранной страны и готовит рекомендательный отчёт. Это не
+            государственная экспертиза. Почта:{' '}
+            <a href={LEGAL_MAILTO} className="font-medium underline underline-offset-2">
+              {LEGAL_EMAIL}
+            </a>
+            . Условия услуги — в{' '}
+            <Link href="/offer" className="font-medium underline underline-offset-2">
+              публичной оферте
+            </Link>
+            .
           </p>
         </div>
 

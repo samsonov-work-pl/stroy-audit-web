@@ -322,7 +322,7 @@ def _resend(to: str, subject: str, text: str) -> bool:
     if not key:
         log.warning("RESEND_API_KEY не задан, письмо о подписке не отправлено")
         return False
-    sender = (os.getenv("EMAIL_FROM") or "СтройАудит.ai <reports@stroyaudit.ai>").strip()
+    sender = (os.getenv("EMAIL_FROM") or "СтройАудит.ai <reports@stroyaudit-ai.com>").strip()
     body = json.dumps(
         {"from": sender, "to": [to], "subject": subject, "text": text},
         ensure_ascii=False,

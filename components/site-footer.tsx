@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Logo } from '@/components/site-header'
-import { legalDocuments } from '@/lib/legal'
+import { LEGAL_NAME, legalDocuments } from '@/lib/legal'
 import { socialLinks } from '@/lib/social'
 
 export function SiteFooter() {
@@ -47,11 +47,19 @@ export function SiteFooter() {
             </ul>
           </nav>
         </div>
-        <div className="flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="max-w-xl text-xs leading-relaxed text-muted-foreground">
-            Отчёт СтройАудит.ai носит рекомендательный характер и не заменяет экспертизу
-            проектной документации.
-          </p>
+        <div className="flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex max-w-xl flex-col gap-2">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Отчёт СтройАудит.ai носит рекомендательный характер и не заменяет экспертизу
+              проектной документации.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Исполнитель: {LEGAL_NAME}.{' '}
+              <Link href="/offer" className="underline underline-offset-2">
+                Публичная оферта
+              </Link>
+            </p>
+          </div>
           <p className="font-mono text-xs text-muted-foreground">© 2026 СтройАудит.ai</p>
         </div>
       </div>
