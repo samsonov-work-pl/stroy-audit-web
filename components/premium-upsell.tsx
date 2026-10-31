@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { CheckCircle2, ExternalLink, Loader2, Lock, MessagesSquare, Sparkles, X } from 'lucide-react'
-import { DEVELOPER_EXAMPLE_REPORT_URL, ExampleReportLink } from '@/components/example-report-link'
+import { ExampleReportLink } from '@/components/example-report-link'
 import { useRubRates } from '@/components/fx-rates'
 import { getJurisdiction, type Jurisdiction } from '@/components/jurisdiction-provider'
 import { isPaidTier, loadSelectedTier, saveSelectedTier, TIER_EVENT, TIER_FRAME_COLOR, type PaidTier } from '@/lib/audit-tier'
 import {
   claimReportGeneration,
+  lavaWidgetEnvName,
   lavaWidgetId,
   lavaWidgetSrc,
   PAYMENT_CHANNEL,
@@ -217,12 +218,17 @@ const PRO_FEATURES = [
   'Чат по отчёту 14 дней',
 ]
 
-const DEVELOPER_FEATURES = [
-  ...PRO_FEATURES,
-  'Детальный анализ смет и ведомостей объёмов',
-  'Разбор спецификаций материалов',
-  'Строительные рекомендации для подрядчиков',
-]
+function tariffName(tier: PaidTier) {
+  if (tier === 'choice') return 'Выбор застройщика'
+  if (tier === 'business') return 'Профи / Бизнес'
+  return 'Полный аудит'
+}
+
+function tariffPeriod(tier: PaidTier) {
+  if (tier === 'choice') return '3 проекта, разовая оплата'
+  if (tier === 'business') return '10 проектов, разовая оплата'
+  return 'один проект, разовая оплата'
+}
 
 export type DeepAuditRequest = {
   file: File | null
@@ -258,7 +264,7 @@ function TierPayButton({
   label: string
   onPay: () => void
 }) {
-  const tariffName = tier === 'full' ? 'полный отчёт' : 'отчёт для застройщиков'
+  const name = tariffName(tier)
   return (
     <div
       className="inline-flex h-11 w-full items-center justify-center gap-1 rounded-lg border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-background/90"
@@ -267,10 +273,10 @@ function TierPayButton({
     >
       <button type="button" onClick={onPay} className="inline-flex items-center gap-2 text-left">
         <Sparkles className="size-4 shrink-0" aria-hidden="true" />
-        {tier === 'full' ? `Открыть за ${formatGrouped(TARIFF_RUB.full)} ₽` : 'Получить'}
+        {formatGrouped(TARIFF_RUB[tier])} <span className={currencyFont}>₽</span>
       </button>
       <a href="#pricing" className="underline decoration-1 underline-offset-2 hover:opacity-70">
-        {tariffName}
+        {name}
       </a>
     </div>
   )
@@ -299,10 +305,10 @@ export function PremiumUpsell({
   const [state, setState] = useState<DeepState>(
     initialDeep ? { kind: 'done', ...initialDeep } : { kind: 'idle' },
   )
-  const amountRub = tier === 'developer' ? TARIFF_RUB.developer : TARIFF_RUB.full
+  const amountRub = TARIFF_RUB[tier]
   const rates = useRubRates()
   const reference = rates ? referenceAmounts(amountRub, rates) : null
-  const features = tier === 'developer' ? DEVELOPER_FEATURES : PRO_FEATURES
+  const features = PRO_FEATURES
   const widgetId = lavaWidgetId(tier)
   const generating = useRef(false)
   const delivered = useRef(Boolean(initialDeep))
@@ -336,7 +342,7 @@ export function PremiumUpsell({
     body.append('consent_version', consentVersion)
     body.append('payment_verified', 'true')
     if (current.auditId) body.append('audit_id', current.auditId)
-    body.append('tier', loadSelectedTier())
+    body.append('tier', 'full')
     try {
       const res = await fetch(deepUrl, { method: 'POST', body })
       const raw = await res.text()
@@ -372,7 +378,7 @@ export function PremiumUpsell({
               report,
               email: current.email,
               jurisdiction: current.jurisdiction,
-              tier: loadSelectedTier(),
+              tier: 'full',
             }),
           })
           const session = (await sessionRes.json().catch(() => null)) as {
@@ -490,9 +496,7 @@ export function PremiumUpsell({
         <div className="flex items-start gap-3 rounded-xl border border-success/40 bg-success/10 p-5 text-success" role="status">
           <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin" aria-hidden="true" />
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-semibold">
-              Оплата подтверждена. Формируем {tier === 'developer' ? 'отчёт для застройщиков' : 'полный отчёт'}
-            </p>
+            <p className="text-sm font-semibold">Оплата подтверждена. Формируем полный отчёт</p>
             <p className="text-xs leading-relaxed text-muted-foreground">
               Это может занять несколько минут. Не закрывайте страницу — готовый отчёт появится здесь.
             </p>
@@ -541,16 +545,16 @@ export function PremiumUpsell({
               />
               <ExampleReportLink tone="onDark">Пример полного отчёта</ExampleReportLink>
             </div>
-            <div className="flex flex-col items-stretch gap-1.5">
-              <TierPayButton
-                tier="developer"
-                label="Получить отчёт для застройщиков"
-                onPay={() => openPayment('developer')}
-              />
-              <ExampleReportLink tone="onDark" href={DEVELOPER_EXAMPLE_REPORT_URL}>
-                Пример отчёта для застройщиков
-              </ExampleReportLink>
-            </div>
+            <TierPayButton
+              tier="choice"
+              label={`Оплатить ${formatGrouped(TARIFF_RUB.choice)} ₽ за 3 проекта`}
+              onPay={() => openPayment('choice')}
+            />
+            <TierPayButton
+              tier="business"
+              label={`Оплатить ${formatGrouped(TARIFF_RUB.business)} ₽ за 10 проектов`}
+              onPay={() => openPayment('business')}
+            />
           </div>
         </div>
       </div>
@@ -640,11 +644,9 @@ function DeepAuditDialog({
           </span>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <h2 id={titleId} className="text-base font-bold text-balance">
-              {tier === 'developer' ? 'Аудит для застройщиков' : 'Подробный инженерный аудит'}
+              {tariffName(tier)}
             </h2>
-            <p className="text-xs text-muted-foreground">
-              {tier === 'developer' ? 'Тариф «Для застройщиков» · в месяц' : 'Тариф «Полный аудит» · разовая оплата'}
-            </p>
+            <p className="text-xs text-muted-foreground">{tariffPeriod(tier)}</p>
           </div>
           <button
             type="button"
@@ -685,7 +687,7 @@ function DeepAuditDialog({
           <div className="flex items-start gap-3 rounded-lg border border-success/40 bg-success/10 p-4 text-success" role="status">
             <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-success" aria-hidden="true" />
             <p className="text-sm font-semibold leading-relaxed">
-              Оплата подтверждена. Формируем {tier === 'developer' ? 'отчёт для застройщиков' : 'полный отчёт'} — это
+              Оплата подтверждена. Формируем полный отчёт — это
               может занять несколько минут.
             </p>
           </div>
@@ -808,7 +810,7 @@ function LavaWidgetDialog({
         <div className="flex items-start gap-3">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <h2 id={titleId} className="text-base font-bold">
-              {tier === 'developer' ? 'Оплата отчёта для застройщиков' : 'Оплата полного отчёта'}
+              Оплата: {tariffName(tier)}
             </h2>
             <p className="text-xs leading-relaxed text-muted-foreground">
               После оплаты подробный отчёт откроется здесь же.
@@ -838,7 +840,7 @@ function LavaWidgetDialog({
         ) : (
           <p role="alert" className="text-sm text-warning">
             Для этого тарифа нужен свой Web-Widget. В кабинете Lava.top сгенерируйте код и вставьте его UUID в
-            переменную {tier === 'developer' ? 'NEXT_PUBLIC_LAVA_WIDGET_DEVELOPER' : 'NEXT_PUBLIC_LAVA_WIDGET_FULL'}.
+            переменную {lavaWidgetEnvName(tier)}.
           </p>
         )}
       </div>

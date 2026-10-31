@@ -43,7 +43,7 @@ export function AuditPreview() {
                   rel="noopener noreferrer"
                   className="group inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium transition-colors hover:bg-muted"
                 >
-                  Пример для застройщиков
+                  Пример расширенного отчёта
                   <ArrowUpRight
                     className="size-3.5 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
                     aria-hidden="true"

@@ -544,7 +544,7 @@ export function UploadCard() {
         <div className="flex flex-col gap-2">
           <ExampleReportLink className="w-full" />
           <ExampleReportLink href={DEVELOPER_EXAMPLE_REPORT_URL} className="w-full">
-            Посмотреть пример отчёта для застройщиков
+            Посмотреть пример расширенного отчёта
           </ExampleReportLink>
         </div>
 

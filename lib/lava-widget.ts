@@ -20,12 +20,27 @@ export function parseWidgetId(raw: string | null | undefined) {
   return match?.[0] ?? null
 }
 
+/** Public widget ids already bound to stroyaudit-ai.com. Env overrides them. */
+const WIDGET_FALLBACK: Record<PaidTier, string> = {
+  full: 'bd12812f-4d45-4d23-8ed9-82a8bd93a02f',
+  choice: '726c3fa5-1125-466d-963b-1484ffea0df8',
+  business: '',
+}
+
+export function lavaWidgetEnvName(tier: PaidTier) {
+  if (tier === 'choice') return 'NEXT_PUBLIC_LAVA_WIDGET_CHOICE'
+  if (tier === 'business') return 'NEXT_PUBLIC_LAVA_WIDGET_BUSINESS'
+  return 'NEXT_PUBLIC_LAVA_WIDGET_FULL'
+}
+
 export function lavaWidgetId(tier: PaidTier) {
-  const raw =
-    tier === 'developer'
-      ? process.env.NEXT_PUBLIC_LAVA_WIDGET_DEVELOPER
-      : process.env.NEXT_PUBLIC_LAVA_WIDGET_FULL
-  return parseWidgetId(raw)
+  const fromEnv =
+    tier === 'choice'
+      ? process.env.NEXT_PUBLIC_LAVA_WIDGET_CHOICE || process.env.NEXT_PUBLIC_LAVA_WIDGET_DEVELOPER
+      : tier === 'business'
+        ? process.env.NEXT_PUBLIC_LAVA_WIDGET_BUSINESS
+        : process.env.NEXT_PUBLIC_LAVA_WIDGET_FULL
+  return parseWidgetId(fromEnv) ?? parseWidgetId(WIDGET_FALLBACK[tier])
 }
 
 export function lavaWidgetSrc(widgetId: string) {

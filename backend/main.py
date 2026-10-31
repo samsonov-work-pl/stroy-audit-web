@@ -38,13 +38,18 @@ REVOKE_EVENTS = {
     "chargeback.initiated",
     "subscription.cancelled",
 }
-PAID_PLANS = ("full", "developers")
-# Публичный продукт «Полный аудит». Учитывается даже без LAVA_PRODUCT_FULL.
-KNOWN_FULL_PRODUCTS = {"46156488-439c-4f84-86b9-7628f5a6e93e"}
+PAID_PLANS = ("full", "choice", "business", "developers")
+# Продукты Lava.top, привязанные к stroyaudit-ai.com. Учитываются даже без env.
+KNOWN_FULL_PRODUCTS = {"e262a88a-aabe-4a5b-8cf8-d0774e25f98a"}
+KNOWN_FULL_OFFERS = {"897a9501-3853-49cd-b22c-1cada7b220ba"}
+KNOWN_CHOICE_PRODUCTS = {"46156488-439c-4f84-86b9-7628f5a6e93e"}
+KNOWN_CHOICE_OFFERS = {"5cf765a3-e5b3-4d79-8f4c-2f603aebf703"}
 
 PLAN_LABELS = {
     "express": "Экспресс",
     "full": "Полный аудит",
+    "choice": "Выбор застройщика",
+    "business": "Профи / Бизнес",
     "developers": "Для застройщиков",
 }
 
@@ -171,7 +176,9 @@ def resolve_plan(payload: dict[str, Any], data: dict[str, Any]) -> str | None:
     ).lower()
 
     mapping = (
-        ("full", csv_ids("LAVA_OFFER_FULL") | csv_ids("LAVA_PRODUCT_FULL") | KNOWN_FULL_PRODUCTS),
+        ("full", csv_ids("LAVA_OFFER_FULL") | csv_ids("LAVA_PRODUCT_FULL") | KNOWN_FULL_PRODUCTS | KNOWN_FULL_OFFERS),
+        ("choice", csv_ids("LAVA_OFFER_CHOICE") | csv_ids("LAVA_PRODUCT_CHOICE") | KNOWN_CHOICE_PRODUCTS | KNOWN_CHOICE_OFFERS),
+        ("business", csv_ids("LAVA_OFFER_BUSINESS") | csv_ids("LAVA_PRODUCT_BUSINESS")),
         ("developers", csv_ids("LAVA_OFFER_DEVELOPERS") | csv_ids("LAVA_PRODUCT_DEVELOPERS")),
         ("express", csv_ids("LAVA_OFFER_EXPRESS") | csv_ids("LAVA_PRODUCT_EXPRESS")),
     )
@@ -181,6 +188,10 @@ def resolve_plan(payload: dict[str, Any], data: dict[str, Any]) -> str | None:
         if product_id and product_id.lower() in ids:
             return plan
 
+    if any(token in product_name for token in ("профи", "бизнес")):
+        return "business"
+    if "выбор" in product_name and "застройщик" in product_name:
+        return "choice"
     if any(token in product_name for token in ("застройщик", "developer")):
         return "developers"
     if any(token in product_name for token in ("полный", "full", "pro", "deep")):

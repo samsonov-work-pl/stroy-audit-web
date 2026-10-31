@@ -15,9 +15,14 @@ const plans = [
     details: 'Цена одного проекта. Списание в российских рублях через Lava.top.',
   },
   {
-    name: 'Для застройщика',
-    amountRub: TARIFF_RUB.developer,
-    details: 'Подписка на месяц. Списание в российских рублях через Lava.top.',
+    name: 'Выбор застройщика',
+    amountRub: TARIFF_RUB.choice,
+    details: 'Разовая оплата за 3 проекта. Списание в российских рублях через Lava.top.',
+  },
+  {
+    name: 'Профи / Бизнес',
+    amountRub: TARIFF_RUB.business,
+    details: 'Разовая оплата за 10 проектов. Списание в российских рублях через Lava.top.',
   },
 ] as const
 

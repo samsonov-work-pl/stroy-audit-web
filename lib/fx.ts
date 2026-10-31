@@ -1,8 +1,10 @@
 /** Paid prices are always charged in Russian rubles. BYN and KZT are display-only. */
+/** Display prices. They must match the Lava.top products; the widget charges the cabinet price. */
 export const TARIFF_RUB = {
   express: 0,
-  full: 7900,
-  developer: 29900,
+  full: 50,
+  choice: 100,
+  business: 150,
 } as const
 
 export type TariffId = keyof typeof TARIFF_RUB

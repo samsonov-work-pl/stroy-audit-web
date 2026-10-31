@@ -1,4 +1,4 @@
-export const PAID_TIERS = ['full', 'developer'] as const
+export const PAID_TIERS = ['full', 'choice', 'business'] as const
 
 export type PaidTier = (typeof PAID_TIERS)[number]
 
@@ -12,11 +12,12 @@ export const TIER_EVENT = 'stroyaudit-tier'
 export const TIER_FRAME_COLOR: Record<AuditTier, string> = {
   express: '#16a34a',
   full: '#ca8a04',
-  developer: '#16a34a',
+  choice: '#2563eb',
+  business: '#16a34a',
 }
 
 export function isPaidTier(value: unknown): value is PaidTier {
-  return value === 'full' || value === 'developer'
+  return value === 'full' || value === 'choice' || value === 'business'
 }
 
 export function isAuditTier(value: unknown): value is AuditTier {

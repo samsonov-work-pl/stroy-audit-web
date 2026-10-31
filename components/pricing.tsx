@@ -32,7 +32,7 @@ const plans: {
   {
     name: 'Полный аудит',
     tier: 'full',
-    period: 'за один проект, разовая оплата',
+    period: 'один проект, разовая оплата',
     amountRub: TARIFF_RUB.full,
     features: [
       'Дефектная ведомость, чтобы снизить цену строителей и поправить проект',
@@ -41,21 +41,31 @@ const plans: {
       'Чек-лист проверки работ на объекте',
       'Чат по отчёту 14 дней',
     ],
+    popular: false,
+  },
+  {
+    name: 'Выбор застройщика',
+    tier: 'choice',
+    period: '3 проекта, разовая оплата',
+    amountRub: TARIFF_RUB.choice,
+    features: [
+      'Три полных аудита',
+      'Все замечания со ссылками на нормы',
+      'PDF по каждому проекту',
+      'Чат по каждому отчёту 14 дней',
+    ],
     popular: true,
   },
   {
-    name: 'Для застройщиков',
-    tier: 'developer',
-    period: 'в месяц',
-    amountRub: TARIFF_RUB.developer,
+    name: 'Профи / Бизнес',
+    tier: 'business',
+    period: '10 проектов, разовая оплата',
+    amountRub: TARIFF_RUB.business,
     features: [
-      'Всё из тарифа «Полный аудит»',
-      'Приоритетная обработка',
-      'Анализ смет и спецификаций',
-      'Рекомендации для строителей и проектировщиков',
-      'Чат-обсуждение по каждому проекту',
-      'API и командный доступ',
-      'До 20 проектов в месяц',
+      'Десять полных аудитов',
+      'Все замечания со ссылками на нормы',
+      'PDF по каждому проекту',
+      'Чат по каждому отчёту 14 дней',
     ],
     popular: false,
   },
@@ -101,7 +111,7 @@ export function Pricing() {
       <div className="mx-auto flex max-w-6xl flex-col gap-14 px-5 py-24 md:py-32">
         <SectionHeading eyebrow="Тарифы" title="Дешевле одной ошибки в проекте" />
 
-        <ul className="grid items-stretch gap-4 lg:grid-cols-3">
+        <ul className="grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan, i) => (
             <Reveal as="li" key={plan.name} delay={i * 100}>
               <div
