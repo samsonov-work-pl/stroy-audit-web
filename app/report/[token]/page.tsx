@@ -32,7 +32,8 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
     return (
       <Shell>
         <p className="mx-auto max-w-3xl px-5 py-10 text-sm leading-relaxed text-muted-foreground">
-          Ссылка недействительна или её срок истёк. Отчёт и чат удаляются автоматически через 14 дней.
+          Ссылка недействительна или её срок истёк. Отчёт и чат удаляются автоматически через 14 дней,
+          а по тарифу «Профи / Бизнес» — через 30 дней.
           Копия отчёта остаётся в письме, которое было отправлено на ваш email.
         </p>
       </Shell>

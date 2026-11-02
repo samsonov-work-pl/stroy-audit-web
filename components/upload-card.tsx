@@ -336,7 +336,7 @@ export function UploadCard() {
         </div>
 
         <p className="text-center text-sm leading-relaxed text-foreground">
-          Бесплатный экспресс-анализ за считаные минуты: загрузите проект и сразу увидите количество
+          Бесплатный экспресс-анализ за несколько минут: загрузите проект и сразу увидите количество
           ошибок и первые критические замечания без оплаты и привязки карты.
         </p>
 
@@ -554,7 +554,7 @@ export function UploadCard() {
               <div className="h-full w-1/3 animate-[audit-progress_1.4s_ease-in-out_infinite] rounded-full bg-foreground" />
             </div>
             <p className="text-center text-xs text-muted-foreground">
-              Это может занять до минуты.
+              Это может занять несколько минут.
             </p>
           </div>
         ) : (

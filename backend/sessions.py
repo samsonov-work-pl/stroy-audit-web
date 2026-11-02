@@ -60,7 +60,7 @@ def ensure_table(conn) -> None:
 
 
 def session_days(tier: str) -> int:
-    return SUBSCRIPTION_DAYS if tier == "developer" else ONE_TIME_DAYS
+    return SUBSCRIPTION_DAYS if tier in {"developer", "business"} else ONE_TIME_DAYS
 
 
 def public_url(token: str) -> str:
@@ -193,7 +193,7 @@ async def create_session(request: Request) -> dict[str, Any]:
     email = str(payload.get("email") or "").strip().lower()
     tier = str(payload.get("tier") or "full")
     jurisdiction = payload.get("jurisdiction")
-    if tier not in {"full", "developer"}:
+    if tier not in {"full", "choice", "business", "developer"}:
         raise HTTPException(status_code=400, detail="Некорректный тариф.")
     if len(report.strip()) < 50 or len(report) > MAX_REPORT_CHARS:
         raise HTTPException(status_code=400, detail="Некорректный текст отчёта.")

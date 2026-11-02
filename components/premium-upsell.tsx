@@ -226,7 +226,7 @@ function tariffFeatures(tier: PaidTier) {
       'Сравнение рисков и переплат',
       'Рекомендации для строителей и проектировщиков',
       'PDF по каждому проекту',
-      'Чат по каждому отчёту 14 дней',
+      'Чат по каждому отчёту 30 дней',
     ]
   }
   if (tier === 'choice') {
@@ -398,7 +398,8 @@ export function PremiumUpsell({
       }
       let chatUrl: string | null = null
       let emailSent = false
-      let activeDays = 14
+      const chatDays = plan === 'business' ? 30 : 14
+      let activeDays = chatDays
       if (report) {
         try {
           const sessionRes = await fetch('/api/report/session', {
@@ -408,7 +409,7 @@ export function PremiumUpsell({
               report,
               email: current.email,
               jurisdiction: current.jurisdiction,
-              tier: 'full',
+              tier: plan === 'business' ? 'business' : 'full',
             }),
           })
           const session = (await sessionRes.json().catch(() => null)) as {
@@ -419,7 +420,7 @@ export function PremiumUpsell({
           if (sessionRes.ok && typeof session?.url === 'string') {
             chatUrl = session.url
             emailSent = session.emailSent === true
-            activeDays = typeof session.days === 'number' ? session.days : 14
+            activeDays = typeof session.days === 'number' ? session.days : chatDays
           }
         } catch {}
         if (!chatUrl) chatUrl = (await createChatLink(report, current.jurisdiction, current.email)).url
