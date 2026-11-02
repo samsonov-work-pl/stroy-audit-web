@@ -24,7 +24,7 @@ export function parseWidgetId(raw: string | null | undefined) {
 const WIDGET_FALLBACK: Record<PaidTier, string> = {
   full: 'bd12812f-4d45-4d23-8ed9-82a8bd93a02f',
   choice: '726c3fa5-1125-466d-963b-1484ffea0df8',
-  business: '',
+  business: 'b3a30fe8-a098-4316-b2e4-8b32956b0312',
 }
 
 export function lavaWidgetEnvName(tier: PaidTier) {

@@ -44,6 +44,8 @@ KNOWN_FULL_PRODUCTS = {"e262a88a-aabe-4a5b-8cf8-d0774e25f98a"}
 KNOWN_FULL_OFFERS = {"897a9501-3853-49cd-b22c-1cada7b220ba"}
 KNOWN_CHOICE_PRODUCTS = {"46156488-439c-4f84-86b9-7628f5a6e93e"}
 KNOWN_CHOICE_OFFERS = {"5cf765a3-e5b3-4d79-8f4c-2f603aebf703"}
+KNOWN_BUSINESS_PRODUCTS = {"0ecbb153-f2a5-415b-93e0-03fd0a2b04c6"}
+KNOWN_BUSINESS_OFFERS = {"98783786-61c8-4f37-aa28-ffc1a4477c94"}
 
 PLAN_LABELS = {
     "express": "Экспресс",
@@ -178,7 +180,7 @@ def resolve_plan(payload: dict[str, Any], data: dict[str, Any]) -> str | None:
     mapping = (
         ("full", csv_ids("LAVA_OFFER_FULL") | csv_ids("LAVA_PRODUCT_FULL") | KNOWN_FULL_PRODUCTS | KNOWN_FULL_OFFERS),
         ("choice", csv_ids("LAVA_OFFER_CHOICE") | csv_ids("LAVA_PRODUCT_CHOICE") | KNOWN_CHOICE_PRODUCTS | KNOWN_CHOICE_OFFERS),
-        ("business", csv_ids("LAVA_OFFER_BUSINESS") | csv_ids("LAVA_PRODUCT_BUSINESS")),
+        ("business", csv_ids("LAVA_OFFER_BUSINESS") | csv_ids("LAVA_PRODUCT_BUSINESS") | KNOWN_BUSINESS_PRODUCTS | KNOWN_BUSINESS_OFFERS),
         ("developers", csv_ids("LAVA_OFFER_DEVELOPERS") | csv_ids("LAVA_PRODUCT_DEVELOPERS")),
         ("express", csv_ids("LAVA_OFFER_EXPRESS") | csv_ids("LAVA_PRODUCT_EXPRESS")),
     )
