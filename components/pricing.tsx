@@ -6,7 +6,8 @@ import { useRubRates } from '@/components/fx-rates'
 import { Reveal } from '@/components/reveal'
 import { SectionHeading } from '@/components/how-it-works'
 import { loadAuditChoice, saveAuditChoice, TIER_EVENT, TIER_FRAME_COLOR, type AuditTier } from '@/lib/audit-tier'
-import { currencyFont, formatGrouped, referenceAmounts, TARIFF_RUB } from '@/lib/fx'
+import { TariffPrices } from '@/components/tariff-prices'
+import { TARIFF_RUB } from '@/lib/fx'
 import { cn } from '@/lib/utils'
 
 const plans: {
@@ -72,30 +73,6 @@ const plans: {
   },
 ]
 
-function Price({ amountRub }: { amountRub: number }) {
-  const rates = useRubRates()
-  const reference = amountRub > 0 && rates ? referenceAmounts(amountRub, rates) : null
-
-  return (
-    <div className="flex flex-col gap-1">
-      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        {amountRub === 0 ? (
-          <span className="text-4xl font-extrabold tracking-[-0.03em]">бесплатно</span>
-        ) : (
-          <span className="text-4xl font-extrabold tracking-[-0.03em] tabular-nums">
-            {formatGrouped(amountRub)} <span className={cn(currencyFont, 'font-semibold')}>₽</span>
-          </span>
-        )}
-        {reference && (
-          <span className="text-sm font-semibold tabular-nums text-foreground/70">
-            (≈ {formatGrouped(reference.byn)} BYN / {formatGrouped(reference.kzt)} <span className={currencyFont}>₸</span>)
-          </span>
-        )}
-      </p>
-    </div>
-  )
-}
-
 export function Pricing() {
   const rates = useRubRates()
   const [selected, setSelected] = useState<AuditTier | null>(null)
@@ -134,7 +111,7 @@ export function Pricing() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <Price amountRub={plan.amountRub} />
+                  <TariffPrices amountRub={plan.amountRub} />
                   <p className="text-sm text-muted-foreground">{plan.period}</p>
                 </div>
 

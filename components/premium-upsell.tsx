@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { CheckCircle2, ExternalLink, Loader2, Lock, MessagesSquare, Sparkles, X } from 'lucide-react'
 import { ExampleReportLink } from '@/components/example-report-link'
-import { useRubRates } from '@/components/fx-rates'
+import { TariffPrices } from '@/components/tariff-prices'
 import { getJurisdiction, type Jurisdiction } from '@/components/jurisdiction-provider'
 import { isPaidTier, loadSelectedTier, saveSelectedTier, TIER_EVENT, TIER_FRAME_COLOR, type PaidTier } from '@/lib/audit-tier'
 import {
@@ -18,7 +18,7 @@ import {
   publishPaymentSuccess,
   releaseReportGeneration,
 } from '@/lib/lava-widget'
-import { currencyFont, formatGrouped, referenceAmounts, TARIFF_RUB } from '@/lib/fx'
+import { currencyFont, formatGrouped, TARIFF_RUB } from '@/lib/fx'
 import { LEGAL_EMAIL, LEGAL_MAILTO } from '@/lib/legal'
 import { cn } from '@/lib/utils'
 import { isRealPdfUrl, showReportInWindow } from '@/lib/report-pdf'
@@ -336,8 +336,6 @@ export function PremiumUpsell({
     initialDeep ? { kind: 'done', ...initialDeep } : { kind: 'idle' },
   )
   const amountRub = TARIFF_RUB[tier]
-  const rates = useRubRates()
-  const reference = rates ? referenceAmounts(amountRub, rates) : null
   const features = tariffFeatures(tier)
   const widgetId = lavaWidgetId(tier)
   const generating = useRef(false)
@@ -685,7 +683,6 @@ export function PremiumUpsell({
           if (state.kind !== 'submitting') setOpen(false)
         }}
         amountRub={amountRub}
-        reference={reference}
         tier={tier}
         features={features}
         email={request.email}
@@ -712,7 +709,6 @@ function DeepAuditDialog({
   open,
   onClose,
   amountRub,
-  reference,
   tier,
   features,
   email,
@@ -725,7 +721,6 @@ function DeepAuditDialog({
   open: boolean
   onClose: () => void
   amountRub: number
-  reference: { byn: number; kzt: number } | null
   tier: PaidTier
   features: string[]
   email: string
@@ -824,18 +819,9 @@ function DeepAuditDialog({
               ))}
             </ul>
 
-            <div className="flex flex-col gap-1 rounded-lg border border-border bg-background px-4 py-3">
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-sm text-muted-foreground">К оплате</span>
-                <span className="font-mono text-xl font-bold tabular-nums">
-                  {formatGrouped(amountRub)} <span className={currencyFont}>₽</span>
-                </span>
-              </div>
-              {reference && (
-                <p className="text-right text-xs tabular-nums text-muted-foreground">
-                  ≈ {formatGrouped(reference.byn)} BYN / {formatGrouped(reference.kzt)} <span className={currencyFont}>₸</span>
-                </p>
-              )}
+            <div className="flex flex-col gap-3 rounded-lg border border-border bg-background px-4 py-3">
+              <span className="text-sm text-muted-foreground">К оплате</span>
+              <TariffPrices amountRub={amountRub} />
               <p className="text-xs leading-relaxed text-muted-foreground">
                 Списание происходит в российских рублях (RUB) по курсу банка-эмитента.
               </p>
