@@ -352,7 +352,7 @@ export function PremiumUpsell({
     body.append('consent_version', consentVersion)
     body.append('payment_verified', 'true')
     if (current.auditId) body.append('audit_id', current.auditId)
-    body.append('tier', plan === 'business' ? 'business' : 'full')
+    body.append('tier', plan === 'business' || plan === 'choice' ? plan : 'full')
     try {
       const res = await fetch(deepUrl, { method: 'POST', body })
       const raw = await res.text()
