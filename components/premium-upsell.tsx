@@ -196,6 +196,14 @@ function OpenReportButton({
   )
 }
 
+function projectsWord(count: number) {
+  const mod10 = count % 10
+  const mod100 = count % 100
+  if (mod10 === 1 && mod100 !== 11) return 'проект'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'проекта'
+  return 'проектов'
+}
+
 function remarksWord(count: number) {
   const mod10 = count % 10
   const mod100 = count % 100
@@ -302,6 +310,8 @@ export function PremiumUpsell({
   const [open, setOpen] = useState(false)
   const [payOpen, setPayOpen] = useState(false)
   const [tier, setTier] = useState<PaidTier>('full')
+  const [credits, setCredits] = useState<number | null>(null)
+  const creditsRef = useRef(0)
   const [state, setState] = useState<DeepState>(
     initialDeep ? { kind: 'done', ...initialDeep } : { kind: 'idle' },
   )
@@ -318,8 +328,8 @@ export function PremiumUpsell({
   onFullReportRef.current = onFullReport
 
   const generateFullReport = useCallback(async () => {
-    if (generating.current || delivered.current) return
-    if (!claimReportGeneration()) return
+    if (generating.current || delivered.current) return false
+    if (!claimReportGeneration()) return false
     const current = requestRef.current
     if (!current.file) {
       releaseReportGeneration()
@@ -328,7 +338,7 @@ export function PremiumUpsell({
         message: 'Файл проекта не сохранился в браузере. Загрузите его заново — после оплаты отчёт запустится сам.',
       })
       setOpen(true)
-      return
+      return false
     }
     generating.current = true
     setPayOpen(false)
@@ -355,7 +365,7 @@ export function PremiumUpsell({
         releaseReportGeneration()
         const detail = pickString(data, ['detail', 'message', 'error'])
         setState({ kind: 'error', message: detail ?? `Не удалось сформировать отчёт (HTTP ${res.status}).` })
-        return
+        return false
       }
       const report = typeof data === 'string' ? data : pickString(data, ['report', 'markdown', 'result'])
       const rawPdf = pickString(data, ['pdf_url', 'pdfUrl', 'download_url'])
@@ -364,7 +374,7 @@ export function PremiumUpsell({
         generating.current = false
         releaseReportGeneration()
         setState({ kind: 'error', message: 'Сервер не вернул текст отчёта. Попробуйте ещё раз.' })
-        return
+        return false
       }
       let chatUrl: string | null = null
       let emailSent = false
@@ -397,12 +407,68 @@ export function PremiumUpsell({
       delivered.current = true
       onFullReportRef.current({ pdfUrl, report, chatUrl })
       setState({ kind: 'done', pdfUrl, report, chatUrl, emailSent, activeDays })
+      return true
     } catch {
       generating.current = false
       releaseReportGeneration()
       setState({ kind: 'error', message: 'Не удалось связаться с сервером. Проверьте подключение и попробуйте снова.' })
+      return false
     }
   }, [consentVersion, deepUrl])
+
+  const loadCredits = useCallback(async (email: string) => {
+    const res = await fetch(`/api/credits?email=${encodeURIComponent(email)}`)
+    if (!res.ok) return creditsRef.current
+    const data = (await res.json().catch(() => null)) as { remaining?: unknown } | null
+    const remaining = typeof data?.remaining === 'number' ? data.remaining : 0
+    creditsRef.current = remaining
+    setCredits(remaining)
+    return remaining
+  }, [])
+
+  const claimAndGenerate = useCallback(async () => {
+    if (delivered.current) return
+    const email = requestRef.current.email.trim()
+    const res = await fetch('/api/credits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    const data = (await res.json().catch(() => null)) as { claimId?: unknown; error?: unknown } | null
+    if (!res.ok || typeof data?.claimId !== 'string') {
+      const message = typeof data?.error === 'string' ? data.error : 'Не удалось списать проект с баланса.'
+      setState({ kind: 'error', message })
+      setOpen(true)
+      return
+    }
+    const ok = await generateFullReport()
+    if (!ok) {
+      await fetch('/api/credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restore', claimId: data.claimId }),
+      }).catch(() => undefined)
+    }
+    await loadCredits(email)
+  }, [generateFullReport, loadCredits])
+
+  const waitForCredits = useCallback(
+    async (email: string, baseline: number) => {
+      for (let attempt = 0; attempt < 15; attempt += 1) {
+        const remaining = await loadCredits(email)
+        if (remaining > baseline) return remaining
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+      }
+      return null
+    },
+    [loadCredits],
+  )
+
+  useEffect(() => {
+    const email = request.email.trim()
+    if (!email) return
+    void loadCredits(email)
+  }, [loadCredits, request.email])
 
   useEffect(() => {
     const syncTier = () => setTier(loadSelectedTier())
@@ -411,15 +477,32 @@ export function PremiumUpsell({
     return () => window.removeEventListener(TIER_EVENT, syncTier)
   }, [])
 
+  const confirmingPayment = useRef(false)
+
   const unlockPaidReport = useCallback(
-    (paid: PaidTier) => {
+    async (paid: PaidTier) => {
+      if (confirmingPayment.current || delivered.current) return
+      confirmingPayment.current = true
       saveSelectedTier(paid)
       setTier(paid)
       setPayOpen(false)
+      setState({ kind: 'submitting' })
+      setOpen(true)
       document.getElementById('audit-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      void generateFullReport()
+      const email = requestRef.current.email.trim()
+      const baseline = creditsRef.current
+      const arrived = await waitForCredits(email, baseline)
+      confirmingPayment.current = false
+      if (arrived == null) {
+        setState({
+          kind: 'error',
+          message: `Оплата не привязалась к ${email}. В окне Lava укажите эту же почту: оставшиеся проекты хранятся на почте из платежа.`,
+        })
+        return
+      }
+      await claimAndGenerate()
     },
-    [generateFullReport],
+    [claimAndGenerate, waitForCredits],
   )
 
   useEffect(() => {
@@ -491,12 +574,18 @@ export function PremiumUpsell({
               onCreated={handleChatCreated}
             />
           </div>
+          {credits != null && credits > 0 && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              На {request.email} осталось {credits} {projectsWord(credits)}. Следующий проект загрузите с этой же
+              почты — повторная оплата не нужна.
+            </p>
+          )}
         </div>
       ) : state.kind === 'submitting' ? (
         <div className="flex items-start gap-3 rounded-xl border border-success/40 bg-success/10 p-5 text-success" role="status">
           <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin" aria-hidden="true" />
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-semibold">Оплата подтверждена. Формируем полный отчёт</p>
+            <p className="text-sm font-semibold">Подтверждаем оплату и формируем полный отчёт</p>
             <p className="text-xs leading-relaxed text-muted-foreground">
               Это может занять несколько минут. Не закрывайте страницу — готовый отчёт появится здесь.
             </p>
@@ -537,6 +626,14 @@ export function PremiumUpsell({
             </div>
           </div>
           <div className="flex shrink-0 flex-col gap-3">
+            {credits != null && credits > 0 && (
+              <button type="button" onClick={() => void claimAndGenerate()} className={PAY_BUTTON_CLASS}>
+                Открыть отчёт · осталось {credits} {projectsWord(credits)}
+              </button>
+            )}
+            <p className="max-w-xs text-[11px] leading-relaxed text-background/60">
+              В окне оплаты укажите {request.email}. Оставшиеся проекты открываются с этой почты.
+            </p>
             <div className="flex flex-col items-stretch gap-1.5">
               <TierPayButton
                 tier="full"
@@ -573,7 +670,10 @@ export function PremiumUpsell({
         jurisdiction={request.jurisdiction}
         state={state}
         onPay={() => openPayment(tier)}
-        onRetry={() => void generateFullReport()}
+        onRetry={() => {
+          if (creditsRef.current > 0) void claimAndGenerate()
+          else void unlockPaidReport(loadSelectedTier())
+        }}
         onChatCreated={handleChatCreated}
       />
       <LavaWidgetDialog
@@ -687,7 +787,7 @@ function DeepAuditDialog({
           <div className="flex items-start gap-3 rounded-lg border border-success/40 bg-success/10 p-4 text-success" role="status">
             <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-success" aria-hidden="true" />
             <p className="text-sm font-semibold leading-relaxed">
-              Оплата подтверждена. Формируем полный отчёт — это
+              Подтверждаем оплату и формируем полный отчёт — это
               может занять несколько минут.
             </p>
           </div>

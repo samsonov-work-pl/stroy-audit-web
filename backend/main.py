@@ -304,6 +304,82 @@ def record_sqlite(event: dict[str, Any], status: str, payload: dict[str, Any]) -
         conn.close()
 
 
+PLAN_SLOTS = {"full": 1, "choice": 3, "business": 10}
+
+CREDIT_STATEMENTS = (
+    """
+    CREATE TABLE IF NOT EXISTS audit_credits (
+        id TEXT PRIMARY KEY,
+        email TEXT NOT NULL,
+        payment_event_id TEXT UNIQUE,
+        contract_id TEXT,
+        plan TEXT NOT NULL,
+        granted INTEGER NOT NULL,
+        remaining INTEGER NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS audit_credits_email_idx ON audit_credits (email)",
+)
+
+
+def ensure_credit_tables(cur) -> None:
+    for statement in CREDIT_STATEMENTS:
+        cur.execute(statement)
+
+
+def grant_project_slots(cur, event: dict[str, Any]) -> None:
+    slots = PLAN_SLOTS.get(event.get("plan") or "")
+    email = (event.get("email") or "").strip().lower()
+    event_id = event.get("event_id")
+    if not slots or not email or not event_id:
+        return
+    ensure_credit_tables(cur)
+    cur.execute(
+        """
+        INSERT INTO audit_credits (
+            id, email, payment_event_id, contract_id, plan, granted, remaining
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (payment_event_id) DO NOTHING
+        """,
+        (
+            str(uuid.uuid4()),
+            email,
+            event_id,
+            event.get("contract_id"),
+            event.get("plan"),
+            slots,
+            slots,
+        ),
+    )
+
+
+def revoke_project_slots(cur, event: dict[str, Any]) -> None:
+    email = (event.get("email") or "").strip().lower()
+    if not email:
+        return
+    ensure_credit_tables(cur)
+    contract_id = event.get("contract_id")
+    if contract_id:
+        cur.execute(
+            "UPDATE audit_credits SET remaining = 0 WHERE email = %s AND contract_id = %s",
+            (email, contract_id),
+        )
+        return
+    cur.execute(
+        """
+        UPDATE audit_credits SET remaining = 0
+        WHERE id = (
+            SELECT id FROM audit_credits
+            WHERE email = %s AND remaining > 0
+            ORDER BY created_at DESC
+            LIMIT 1
+        )
+        """,
+        (email,),
+    )
+
+
 def record_postgres(event: dict[str, Any], status: str, payload: dict[str, Any]) -> bool:
     dsn = (os.getenv("DATABASE_URL") or "").strip()
     if not dsn:
@@ -368,11 +444,14 @@ def record_postgres(event: dict[str, Any], status: str, payload: dict[str, Any])
                     "UPDATE projects SET paid = TRUE WHERE lower(email) = %s",
                     (event["email"],),
                 )
+                if inserted:
+                    grant_project_slots(cur, event)
             elif event["email"] and status == "revoked":
                 cur.execute(
                     "UPDATE projects SET paid = FALSE WHERE lower(email) = %s",
                     (event["email"],),
                 )
+                revoke_project_slots(cur, event)
         conn.commit()
     return inserted
 
