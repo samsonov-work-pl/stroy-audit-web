@@ -218,13 +218,33 @@ function criticalWord(count: number) {
   return mod10 === 1 && mod100 !== 11 ? 'критическое' : 'критических'
 }
 
-const PRO_FEATURES = [
-  'Дефектная ведомость для пересмотра сметы и правок в проекте',
-  'Все замечания со ссылками на пункты норм, а не только первые',
-  'Многостраничный PDF для обоснованного пересмотра сметы и правок в проекте',
-  'Способы исправления по каждому замечанию',
-  'Чат по отчёту 14 дней',
-]
+function tariffFeatures(tier: PaidTier) {
+  if (tier === 'business') {
+    return [
+      '10 отдельных отчётов: АР, КР, ОВ, ВК или смета',
+      'Все замечания со ссылками на нормы',
+      'Сравнение рисков и переплат',
+      'Рекомендации для строителей и проектировщиков',
+      'PDF по каждому проекту',
+      'Чат по каждому отчёту 14 дней',
+    ]
+  }
+  if (tier === 'choice') {
+    return [
+      '3 отдельных отчёта',
+      'Все замечания со ссылками на нормы',
+      'Сравнение рисков и переплат внутри загруженного файла',
+      'PDF по каждому проекту',
+      'Чат по каждому отчёту 14 дней',
+    ]
+  }
+  return [
+    'Все замечания со ссылками на нормы',
+    'Таблица рисков для правок в проекте и пересмотра сметы',
+    'PDF, который можно распечатать',
+    'Чат по отчёту 14 дней',
+  ]
+}
 
 function tariffName(tier: PaidTier) {
   if (tier === 'choice') return 'Выбор застройщика'
@@ -318,7 +338,7 @@ export function PremiumUpsell({
   const amountRub = TARIFF_RUB[tier]
   const rates = useRubRates()
   const reference = rates ? referenceAmounts(amountRub, rates) : null
-  const features = PRO_FEATURES
+  const features = tariffFeatures(tier)
   const widgetId = lavaWidgetId(tier)
   const generating = useRef(false)
   const delivered = useRef(Boolean(initialDeep))
@@ -426,13 +446,13 @@ export function PremiumUpsell({
     return remaining
   }, [])
 
-  const claimAndGenerate = useCallback(async () => {
+  const claimAndGenerate = useCallback(async (preferred?: PaidTier) => {
     if (delivered.current) return
     const email = requestRef.current.email.trim()
     const res = await fetch('/api/credits', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, plan: preferred }),
     })
     const data = (await res.json().catch(() => null)) as { claimId?: unknown; plan?: unknown; error?: unknown } | null
     if (!res.ok || typeof data?.claimId !== 'string') {
@@ -501,7 +521,7 @@ export function PremiumUpsell({
         })
         return
       }
-      await claimAndGenerate()
+      await claimAndGenerate(paid)
     },
     [claimAndGenerate, waitForCredits],
   )
@@ -628,7 +648,7 @@ export function PremiumUpsell({
           </div>
           <div className="flex shrink-0 flex-col gap-3">
             {credits != null && credits > 0 && (
-              <button type="button" onClick={() => void claimAndGenerate()} className={PAY_BUTTON_CLASS}>
+              <button type="button" onClick={() => void claimAndGenerate(tier)} className={PAY_BUTTON_CLASS}>
                 Открыть отчёт · осталось {credits} {projectsWord(credits)}
               </button>
             )}
@@ -672,7 +692,7 @@ export function PremiumUpsell({
         state={state}
         onPay={() => openPayment(tier)}
         onRetry={() => {
-          if (creditsRef.current > 0) void claimAndGenerate()
+          if (creditsRef.current > 0) void claimAndGenerate(tier)
           else void unlockPaidReport(loadSelectedTier())
         }}
         onChatCreated={handleChatCreated}

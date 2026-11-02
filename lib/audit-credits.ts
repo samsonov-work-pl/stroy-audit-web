@@ -62,8 +62,8 @@ export async function creditBalance(email: string) {
   return result.rows[0]?.remaining ?? 0
 }
 
-/** Takes one paid project from the oldest grant. Returns null when the email has none left. */
-export async function consumeCredit(email: string) {
+/** Takes one paid project, preferring the tariff just purchased. Returns null when the email has none left. */
+export async function consumeCredit(email: string, preferredPlan?: string | null) {
   await ensureCreditTables()
   const client = await pool.connect()
   try {
@@ -71,10 +71,10 @@ export async function consumeCredit(email: string) {
     const found = await client.query<{ id: string; plan: string }>(
       `SELECT id, plan FROM audit_credits
        WHERE email = $1 AND remaining > 0
-       ORDER BY created_at
+       ORDER BY CASE WHEN plan = $2 THEN 0 ELSE 1 END, created_at
        LIMIT 1
        FOR UPDATE`,
-      [email],
+      [email, preferredPlan ?? ''],
     )
     const credit = found.rows[0]
     if (!credit) {

@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ error: 'Некорректный запрос.' }, { status: 400 })
   }
-  const record = (body ?? {}) as { action?: unknown; email?: unknown; claimId?: unknown }
+  const record = (body ?? {}) as { action?: unknown; email?: unknown; claimId?: unknown; plan?: unknown }
   if (record.action === 'restore') {
     const claimId = typeof record.claimId === 'string' ? record.claimId.trim() : ''
     if (!/^[0-9a-f-]{36}$/i.test(claimId)) return Response.json({ error: 'Некорректное списание.' }, { status: 400 })
@@ -34,7 +34,8 @@ export async function POST(req: Request) {
   const email = normalizeCreditEmail(record.email)
   if (!email) return Response.json({ error: 'Укажите почту.' }, { status: 400 })
   try {
-    const spent = await consumeCredit(email)
+    const plan = record.plan === 'business' || record.plan === 'choice' || record.plan === 'full' ? record.plan : null
+    const spent = await consumeCredit(email, plan)
     if (!spent) return Response.json({ error: 'На этой почте не осталось оплаченных проектов.' }, { status: 409 })
     return Response.json(spent)
   } catch (error) {
