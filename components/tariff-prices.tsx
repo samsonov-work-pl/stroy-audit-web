@@ -53,7 +53,7 @@ function FlagFrame({ children }: { children: ReactNode }) {
   return (
     <svg
       viewBox="0 0 36 24"
-      className="h-6 w-9 shrink-0 rounded-[2px] ring-1 ring-black/15"
+      className="h-4 w-6 shrink-0 rounded-[2px] ring-1 ring-black/15"
       aria-hidden="true"
     >
       {children}
