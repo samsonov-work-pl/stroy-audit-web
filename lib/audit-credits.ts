@@ -68,32 +68,32 @@ export async function consumeCredit(email: string) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-    const found = await client.query<{ id: string }>(
-      `SELECT id FROM audit_credits
+    const found = await client.query<{ id: string; plan: string }>(
+      `SELECT id, plan FROM audit_credits
        WHERE email = $1 AND remaining > 0
        ORDER BY created_at
        LIMIT 1
        FOR UPDATE`,
       [email],
     )
-    const creditId = found.rows[0]?.id
-    if (!creditId) {
+    const credit = found.rows[0]
+    if (!credit) {
       await client.query('ROLLBACK')
       return null
     }
-    await client.query('UPDATE audit_credits SET remaining = remaining - 1 WHERE id = $1', [creditId])
+    await client.query('UPDATE audit_credits SET remaining = remaining - 1 WHERE id = $1', [credit.id])
     const claimId = randomUUID()
     await client.query('INSERT INTO audit_credit_uses (id, email, credit_id) VALUES ($1, $2, $3)', [
       claimId,
       email,
-      creditId,
+      credit.id,
     ])
     const sum = await client.query<{ remaining: number }>(
       'SELECT COALESCE(SUM(remaining), 0)::int AS remaining FROM audit_credits WHERE email = $1',
       [email],
     )
     await client.query('COMMIT')
-    return { claimId, remaining: sum.rows[0]?.remaining ?? 0 }
+    return { claimId, remaining: sum.rows[0]?.remaining ?? 0, plan: credit.plan }
   } catch (error) {
     await client.query('ROLLBACK')
     throw error

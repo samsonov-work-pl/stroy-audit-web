@@ -327,7 +327,7 @@ export function PremiumUpsell({
   const onFullReportRef = useRef(onFullReport)
   onFullReportRef.current = onFullReport
 
-  const generateFullReport = useCallback(async () => {
+  const generateFullReport = useCallback(async (plan: PaidTier = 'full') => {
     if (generating.current || delivered.current) return false
     if (!claimReportGeneration()) return false
     const current = requestRef.current
@@ -352,7 +352,7 @@ export function PremiumUpsell({
     body.append('consent_version', consentVersion)
     body.append('payment_verified', 'true')
     if (current.auditId) body.append('audit_id', current.auditId)
-    body.append('tier', 'full')
+    body.append('tier', plan === 'business' ? 'business' : 'full')
     try {
       const res = await fetch(deepUrl, { method: 'POST', body })
       const raw = await res.text()
@@ -434,14 +434,15 @@ export function PremiumUpsell({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     })
-    const data = (await res.json().catch(() => null)) as { claimId?: unknown; error?: unknown } | null
+    const data = (await res.json().catch(() => null)) as { claimId?: unknown; plan?: unknown; error?: unknown } | null
     if (!res.ok || typeof data?.claimId !== 'string') {
       const message = typeof data?.error === 'string' ? data.error : 'Не удалось списать проект с баланса.'
       setState({ kind: 'error', message })
       setOpen(true)
       return
     }
-    const ok = await generateFullReport()
+    const plan: PaidTier = data.plan === 'business' || data.plan === 'choice' || data.plan === 'full' ? data.plan : 'full'
+    const ok = await generateFullReport(plan)
     if (!ok) {
       await fetch('/api/credits', {
         method: 'POST',
