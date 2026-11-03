@@ -13,7 +13,11 @@ function ticketSecret() {
 export async function POST(req: Request) {
   const secret = ticketSecret()
   if (!secret) {
-    return Response.json({ code: 'ticket_secret_missing', error: 'Ключ доступа пока не настроен.' }, { status: 503 })
+    // Без секрета тикеты не выпускаем: подпись пустым ключом небезопасна.
+    return Response.json(
+      { code: 'ticket_secret_missing', error: 'Запуск отчётов временно недоступен. Попробуйте позже.' },
+      { status: 500 },
+    )
   }
   let body: unknown
   try {

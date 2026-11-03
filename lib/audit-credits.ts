@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto'
-
 import { pool } from '@/lib/db'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -60,72 +58,4 @@ export async function creditBalance(email: string) {
     [email],
   )
   return result.rows[0]?.remaining ?? 0
-}
-
-/** Takes one paid project, preferring the tariff just purchased. Returns null when the email has none left. */
-export async function consumeCredit(email: string, preferredPlan?: string | null) {
-  await ensureCreditTables()
-  const client = await pool.connect()
-  try {
-    await client.query('BEGIN')
-    const found = await client.query<{ id: string; plan: string }>(
-      `SELECT id, plan FROM audit_credits
-       WHERE email = $1 AND remaining > 0
-       ORDER BY CASE WHEN plan = $2 THEN 0 ELSE 1 END, created_at
-       LIMIT 1
-       FOR UPDATE`,
-      [email, preferredPlan ?? ''],
-    )
-    const credit = found.rows[0]
-    if (!credit) {
-      await client.query('ROLLBACK')
-      return null
-    }
-    await client.query('UPDATE audit_credits SET remaining = remaining - 1 WHERE id = $1', [credit.id])
-    const claimId = randomUUID()
-    await client.query('INSERT INTO audit_credit_uses (id, email, credit_id) VALUES ($1, $2, $3)', [
-      claimId,
-      email,
-      credit.id,
-    ])
-    const sum = await client.query<{ remaining: number }>(
-      'SELECT COALESCE(SUM(remaining), 0)::int AS remaining FROM audit_credits WHERE email = $1',
-      [email],
-    )
-    await client.query('COMMIT')
-    return { claimId, remaining: sum.rows[0]?.remaining ?? 0, plan: credit.plan }
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
-  }
-}
-
-export async function restoreCredit(claimId: string) {
-  await ensureCreditTables()
-  const client = await pool.connect()
-  try {
-    await client.query('BEGIN')
-    const use = await client.query<{ credit_id: string }>(
-      `UPDATE audit_credit_uses
-       SET restored = TRUE
-       WHERE id = $1 AND restored = FALSE
-       RETURNING credit_id`,
-      [claimId],
-    )
-    const creditId = use.rows[0]?.credit_id
-    if (!creditId) {
-      await client.query('ROLLBACK')
-      return false
-    }
-    await client.query('UPDATE audit_credits SET remaining = remaining + 1 WHERE id = $1', [creditId])
-    await client.query('COMMIT')
-    return true
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
-  }
 }

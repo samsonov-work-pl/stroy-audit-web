@@ -35,20 +35,16 @@ export async function POST(req: Request) {
   }
   const safeJurisdiction = typeof jurisdiction === 'string' && JURISDICTIONS.has(jurisdiction) ? jurisdiction : null
 
-  // Ключ доступа обязателен, когда включена серверная проверка оплаты.
-  // Он же уезжает в письме как magic-link (?key=...), чтобы отчёт
-  // открывался на любом устройстве без входа и без почты-подтверждения.
-  let accessKey: string | null = null
-  if (process.env.AUDIT_TICKET_SECRET?.trim()) {
-    const tokenEmail = await accessTokenEmail(accessToken)
-    if (!tokenEmail || tokenEmail !== email.trim().toLowerCase()) {
-      return Response.json(
-        { code: 'access_token_required', error: 'Отправка отчёта доступна из браузера с оплаченными проектами.' },
-        { status: 401 },
-      )
-    }
-    accessKey = typeof accessToken === 'string' ? accessToken : null
+  // Ключ доступа обязателен. Он же уезжает в письме как magic-link (?key=...),
+  // чтобы отчёт открывался на любом устройстве без входа и без почты-подтверждения.
+  const tokenEmail = await accessTokenEmail(accessToken)
+  if (!tokenEmail || tokenEmail !== email.trim().toLowerCase()) {
+    return Response.json(
+      { code: 'access_token_required', error: 'Отправка отчёта доступна из браузера с оплаченными проектами.' },
+      { status: 401 },
+    )
   }
+  const accessKey = typeof accessToken === 'string' ? accessToken : null
 
   try {
     const session = await createReportSession({

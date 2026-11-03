@@ -377,7 +377,7 @@ export function PremiumUpsell({
       plan: PaidTier = 'full',
       ticket: string | null = null,
       accessToken: string | null = null,
-    ): Promise<'done' | 'failed' | 'needs-legacy'> => {
+    ): Promise<'done' | 'failed'> => {
     if (generating.current || delivered.current) return 'failed'
     if (!claimReportGeneration()) return 'failed'
     const current = requestRef.current
@@ -390,6 +390,7 @@ export function PremiumUpsell({
       setOpen(true)
       return 'failed'
     }
+    if (!ticket) return 'failed'
     generating.current = true
     setPayOpen(false)
     setState({ kind: 'submitting' })
@@ -400,8 +401,7 @@ export function PremiumUpsell({
     body.append('jurisdiction', current.jurisdiction)
     body.append('consent_accepted', 'true')
     body.append('consent_version', consentVersion)
-    if (ticket) body.append('ticket', ticket)
-    else body.append('payment_verified', 'true')
+    body.append('ticket', ticket)
     if (current.auditId) body.append('audit_id', current.auditId)
     body.append('tier', plan === 'business' || plan === 'choice' ? plan : 'full')
     try {
@@ -414,16 +414,6 @@ export function PremiumUpsell({
       if (!res.ok) {
         generating.current = false
         releaseReportGeneration()
-        const code =
-          data && typeof data === 'object' ? (data as Record<string, unknown>).code : undefined
-        if (code === 'ticket_not_configured') {
-          // API аудита ещё работает в легаси-режиме: ничего не списано, но и отчёта нет.
-          setState({
-            kind: 'error',
-            message: 'Сервис обновляется. Повторите запуск отчёта через пару минут.',
-          })
-          return 'needs-legacy'
-        }
         const detail = pickString(data, ['detail', 'message', 'error'])
         setState({ kind: 'error', message: detail ?? `Не удалось сформировать отчёт (HTTP ${res.status}).` })
         return 'failed'
@@ -521,72 +511,44 @@ export function PremiumUpsell({
         } catch {}
       }
 
-      // 2) По ключу берём одноразовый тикет: API аудита сам проверит оплату и спишет проект.
-      if (accessToken) {
-        let ticket: string | null = null
-        try {
-          const res = await fetch('/api/audit/ticket', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, tier: preferredTier, accessToken }),
-          })
-          const data = (await res.json().catch(() => null)) as { ticket?: unknown; error?: unknown } | null
-          if (res.ok && typeof data?.ticket === 'string') {
-            ticket = data.ticket
-          } else {
-            if (res.status === 401) clearAccessToken()
-            setState({
-              kind: 'error',
-              message: typeof data?.error === 'string' ? data.error : 'Не удалось запустить отчёт. Попробуйте ещё раз.',
-            })
-            setOpen(true)
-            return
-          }
-        } catch {
-          setState({ kind: 'error', message: 'Не удалось связаться с сервером. Попробуйте ещё раз.' })
-          setOpen(true)
-          return
-        }
-        // 'needs-legacy' и 'failed' уже показали свою ошибку; кредит при этом не списан.
-        await generateFullReport(preferredTier, ticket, accessToken)
-        await loadCredits(email)
-        return
-      }
-
-      // 3) Легаси-режим, пока ключи и тикеты не включены: списание через сайт.
-      const res = await fetch('/api/credits', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, plan: preferredTier }),
-      })
-      const data = (await res.json().catch(() => null)) as {
-        claimId?: unknown
-        plan?: unknown
-        error?: unknown
-        code?: unknown
-      } | null
-      if (!res.ok || typeof data?.claimId !== 'string') {
+      if (!accessToken) {
+        // Ключа нет: оплаченные проекты живут в другом браузере (или их нет вовсе).
+        // Доступ — из браузера, где была оплата, или по ссылке из письма с отчётом.
         setState({
           kind: 'error',
-          message:
-            data?.code === 'credits_locked'
-              ? 'Оплаченные проекты открываются в браузере, где вы платили, или по ссылке из письма с отчётом.'
-              : typeof data?.error === 'string'
-                ? data.error
-                : 'Не удалось списать проект с баланса.',
+          message: 'Оплаченные проекты открываются в браузере, где вы платили, или по ссылке из письма с отчётом.',
         })
         setOpen(true)
         return
       }
-      const plan: PaidTier = data.plan === 'business' || data.plan === 'choice' || data.plan === 'full' ? data.plan : 'full'
-      const outcome = await generateFullReport(plan)
-      if (outcome !== 'done') {
-        await fetch('/api/credits', {
+
+      // По ключу берём одноразовый тикет: API аудита сам проверит оплату и спишет проект.
+      let ticket: string | null = null
+      try {
+        const res = await fetch('/api/audit/ticket', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'restore', claimId: data.claimId }),
-        }).catch(() => undefined)
+          body: JSON.stringify({ email, tier: preferredTier, accessToken }),
+        })
+        const data = (await res.json().catch(() => null)) as { ticket?: unknown; error?: unknown } | null
+        if (res.ok && typeof data?.ticket === 'string') {
+          ticket = data.ticket
+        } else {
+          if (res.status === 401) clearAccessToken()
+          setState({
+            kind: 'error',
+            message: typeof data?.error === 'string' ? data.error : 'Не удалось запустить отчёт. Попробуйте ещё раз.',
+          })
+          setOpen(true)
+          return
+        }
+      } catch {
+        setState({ kind: 'error', message: 'Не удалось связаться с сервером. Попробуйте ещё раз.' })
+        setOpen(true)
+        return
       }
+      // 'failed' уже показал свою ошибку; кредит при этом не списан.
+      await generateFullReport(preferredTier, ticket, accessToken)
       await loadCredits(email)
     },
     [generateFullReport, loadCredits],

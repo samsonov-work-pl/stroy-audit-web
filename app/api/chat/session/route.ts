@@ -31,14 +31,12 @@ export async function POST(req: Request) {
   }
   const safeEmail = typeof email === 'string' && EMAIL_PATTERN.test(email) && email.length <= 254 ? email : null
 
-  if (process.env.AUDIT_TICKET_SECRET?.trim()) {
-    const tokenEmail = await accessTokenEmail(accessToken)
-    if (!tokenEmail || !safeEmail || tokenEmail !== safeEmail.trim().toLowerCase()) {
-      return Response.json(
-        { code: 'access_token_required', error: 'Чат открывается из браузера с оплаченными проектами или по ссылке из письма.' },
-        { status: 401 },
-      )
-    }
+  const tokenEmail = await accessTokenEmail(accessToken)
+  if (!tokenEmail || !safeEmail || tokenEmail !== safeEmail.trim().toLowerCase()) {
+    return Response.json(
+      { code: 'access_token_required', error: 'Чат открывается из браузера с оплаченными проектами или по ссылке из письма.' },
+      { status: 401 },
+    )
   }
 
   let token: string
