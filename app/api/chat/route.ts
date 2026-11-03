@@ -1,7 +1,7 @@
 import { convertToModelMessages, streamText, type UIMessage } from 'ai'
 
 import { getJurisdiction, type Jurisdiction } from '@/components/jurisdiction-provider'
-import { getChatModel } from '@/lib/llm'
+import { getChatModel, isChatConfigured } from '@/lib/llm'
 import { findPaidProject, loadMessages, MAX_REPORT_CHARS, reserveMessage, saveMessages } from '@/lib/chat-project'
 
 export const maxDuration = 60
@@ -55,6 +55,9 @@ function sanitizeHistory(value: unknown) {
 }
 
 export async function POST(req: Request) {
+  if (!isChatConfigured()) {
+    return Response.json({ error: 'Чат временно недоступен. Попробуйте позже.' }, { status: 503 })
+  }
   let body: unknown
   try {
     body = await req.json()

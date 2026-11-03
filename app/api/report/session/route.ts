@@ -1,3 +1,4 @@
+import { accessTokenEmail } from '@/lib/audit-access'
 import { MAX_REPORT_CHARS } from '@/lib/chat-project'
 import { createReportSession, isSessionTier } from '@/lib/report-session'
 import { sendReportEmail } from '@/lib/send-report-email'
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ error: 'Некорректный запрос.' }, { status: 400 })
   }
-  const { report, jurisdiction, email, tier } = (body ?? {}) as Record<string, unknown>
+  const { report, jurisdiction, email, tier, accessToken } = (body ?? {}) as Record<string, unknown>
   if (typeof report !== 'string' || report.trim().length < 50 || report.length > MAX_REPORT_CHARS) {
     return Response.json({ error: 'Некорректный текст отчёта.' }, { status: 400 })
   }
@@ -34,6 +35,21 @@ export async function POST(req: Request) {
   }
   const safeJurisdiction = typeof jurisdiction === 'string' && JURISDICTIONS.has(jurisdiction) ? jurisdiction : null
 
+  // Ключ доступа обязателен, когда включена серверная проверка оплаты.
+  // Он же уезжает в письме как magic-link (?key=...), чтобы отчёт
+  // открывался на любом устройстве без входа и без почты-подтверждения.
+  let accessKey: string | null = null
+  if (process.env.AUDIT_TICKET_SECRET?.trim()) {
+    const tokenEmail = await accessTokenEmail(accessToken)
+    if (!tokenEmail || tokenEmail !== email.trim().toLowerCase()) {
+      return Response.json(
+        { code: 'access_token_required', error: 'Отправка отчёта доступна из браузера с оплаченными проектами.' },
+        { status: 401 },
+      )
+    }
+    accessKey = typeof accessToken === 'string' ? accessToken : null
+  }
+
   try {
     const session = await createReportSession({
       email: email.trim().toLowerCase(),
@@ -41,7 +57,9 @@ export async function POST(req: Request) {
       tier,
       jurisdiction: safeJurisdiction,
     })
-    const url = `${publicOrigin(req)}/report/${session.token}`
+    const url = `${publicOrigin(req)}/report/${session.token}${
+      accessKey ? `?key=${encodeURIComponent(accessKey)}` : ''
+    }`
     const emailSent = await sendReportEmail({ to: email.trim(), url, days: session.days })
     return Response.json({
       token: session.token,

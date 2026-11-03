@@ -5,7 +5,7 @@ import type { UIMessage } from 'ai'
 import { db } from '@/lib/db'
 import { chatMessages, projects } from '@/lib/db/schema'
 
-export const MAX_USER_MESSAGES = 60
+export const MAX_USER_MESSAGES = 30
 export const MAX_REPORT_CHARS = 200_000
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,64}$/
 

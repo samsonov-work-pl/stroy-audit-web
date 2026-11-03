@@ -16,7 +16,12 @@ const openrouter = process.env.OPENROUTER_API_KEY
   : null
 
 // OpenRouter is the primary provider; AI Gateway is only a fallback while the key isn't configured.
+export function isChatConfigured() {
+  return Boolean(openrouter)
+}
+
 export function getChatModel(): LanguageModel {
   const modelId = process.env.CHAT_MODEL || DEFAULT_CHAT_MODEL
-  return openrouter ? openrouter.chatModel(modelId) : modelId
+  if (!openrouter) throw new Error('OPENROUTER_API_KEY не задан: чат недоступен.')
+  return openrouter.chatModel(modelId)
 }

@@ -33,6 +33,14 @@ export async function POST(req: Request) {
 
   const email = normalizeCreditEmail(record.email)
   if (!email) return Response.json({ error: 'Укажите почту.' }, { status: 400 })
+  // Легаси-режим списания (пока AUDIT_TICKET_SECRET не задан). Когда секрет
+  // появляется, списание делает API аудита по тикету — из браузера больше нельзя.
+  if (process.env.AUDIT_TICKET_SECRET?.trim()) {
+    return Response.json(
+      { code: 'credits_locked', error: 'Списание проектов теперь происходит автоматически при запуске отчёта.' },
+      { status: 403 },
+    )
+  }
   try {
     const plan = record.plan === 'business' || record.plan === 'choice' || record.plan === 'full' ? record.plan : null
     const spent = await consumeCredit(email, plan)

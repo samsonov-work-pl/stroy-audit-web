@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 
+import { accessTokenEmail } from '@/lib/audit-access'
 import { createProject, MAX_REPORT_CHARS } from '@/lib/chat-project'
 
 const JURISDICTIONS = new Set(['russia', 'belarus', 'kazakhstan', 'eurocodes'])
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ error: 'Некорректный запрос.' }, { status: 400 })
   }
-  const { report, jurisdiction, email } = (body ?? {}) as Record<string, unknown>
+  const { report, jurisdiction, email, accessToken } = (body ?? {}) as Record<string, unknown>
 
   if (typeof report !== 'string' || report.trim().length < 50 || report.length > MAX_REPORT_CHARS) {
     return Response.json({ error: 'Некорректный текст отчёта.' }, { status: 400 })
@@ -29,6 +30,16 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Некорректная юрисдикция.' }, { status: 400 })
   }
   const safeEmail = typeof email === 'string' && EMAIL_PATTERN.test(email) && email.length <= 254 ? email : null
+
+  if (process.env.AUDIT_TICKET_SECRET?.trim()) {
+    const tokenEmail = await accessTokenEmail(accessToken)
+    if (!tokenEmail || !safeEmail || tokenEmail !== safeEmail.trim().toLowerCase()) {
+      return Response.json(
+        { code: 'access_token_required', error: 'Чат открывается из браузера с оплаченными проектами или по ссылке из письма.' },
+        { status: 401 },
+      )
+    }
+  }
 
   let token: string
   try {

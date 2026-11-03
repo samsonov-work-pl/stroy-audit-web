@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { JetBrains_Mono, Manrope } from 'next/font/google'
 import { StructuredData } from '@/components/structured-data'
+import { CaptureAccessKey } from '@/components/capture-access-key'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from '@/lib/site'
 import './globals.css'
 
@@ -87,6 +88,7 @@ export default function RootLayout({
       style={{ '--font-currency': currencyFontStack } as React.CSSProperties}
     >
       <body className="font-sans antialiased">
+        <CaptureAccessKey />
         <StructuredData />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

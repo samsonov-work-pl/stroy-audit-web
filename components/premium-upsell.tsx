@@ -33,6 +33,30 @@ type DeepResult = {
 
 const CHAT_API_URL = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, '') || ''
 const CHAT_SESSION_KEY = 'stroyaudit-chat:'
+const ACCESS_TOKEN_KEY = 'stroyaudit:access-token'
+
+/** Ключ доступа к оплаченным проектам: живёт в браузере, живёт в ссылке из письма. */
+function getStoredAccessToken() {
+  try {
+    const raw = localStorage.getItem(ACCESS_TOKEN_KEY)
+    const value = raw ? (JSON.parse(raw) as { token?: unknown } | null) : null
+    return typeof value?.token === 'string' && value.token ? value.token : null
+  } catch {
+    return null
+  }
+}
+
+function storeAccessToken(token: string) {
+  try {
+    localStorage.setItem(ACCESS_TOKEN_KEY, JSON.stringify({ token }))
+  } catch {}
+}
+
+function clearAccessToken() {
+  try {
+    localStorage.removeItem(ACCESS_TOKEN_KEY)
+  } catch {}
+}
 
 function chatErrorMessage(data: unknown, status: number) {
   if (data && typeof data === 'object') {
@@ -72,10 +96,13 @@ function rememberChatSession(url: string, report: string, jurisdiction: Jurisdic
 }
 
 async function requestChatSession(endpoint: string, report: string, jurisdiction: Jurisdiction, email: string) {
+  const accessToken = getStoredAccessToken()
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ report, jurisdiction, email }),
+    body: JSON.stringify(
+      accessToken ? { report, jurisdiction, email, accessToken } : { report, jurisdiction, email },
+    ),
     signal: endpoint.startsWith('/') ? undefined : AbortSignal.timeout(12_000),
   })
   const data: unknown = await res.json().catch(() => ({}))
@@ -345,9 +372,14 @@ export function PremiumUpsell({
   const onFullReportRef = useRef(onFullReport)
   onFullReportRef.current = onFullReport
 
-  const generateFullReport = useCallback(async (plan: PaidTier = 'full') => {
-    if (generating.current || delivered.current) return false
-    if (!claimReportGeneration()) return false
+  const generateFullReport = useCallback(
+    async (
+      plan: PaidTier = 'full',
+      ticket: string | null = null,
+      accessToken: string | null = null,
+    ): Promise<'done' | 'failed' | 'needs-legacy'> => {
+    if (generating.current || delivered.current) return 'failed'
+    if (!claimReportGeneration()) return 'failed'
     const current = requestRef.current
     if (!current.file) {
       releaseReportGeneration()
@@ -356,7 +388,7 @@ export function PremiumUpsell({
         message: 'Файл проекта не сохранился в браузере. Загрузите его заново — после оплаты отчёт запустится сам.',
       })
       setOpen(true)
-      return false
+      return 'failed'
     }
     generating.current = true
     setPayOpen(false)
@@ -368,7 +400,8 @@ export function PremiumUpsell({
     body.append('jurisdiction', current.jurisdiction)
     body.append('consent_accepted', 'true')
     body.append('consent_version', consentVersion)
-    body.append('payment_verified', 'true')
+    if (ticket) body.append('ticket', ticket)
+    else body.append('payment_verified', 'true')
     if (current.auditId) body.append('audit_id', current.auditId)
     body.append('tier', plan === 'business' || plan === 'choice' ? plan : 'full')
     try {
@@ -381,10 +414,26 @@ export function PremiumUpsell({
       if (!res.ok) {
         generating.current = false
         releaseReportGeneration()
+        const code =
+          data && typeof data === 'object' ? (data as Record<string, unknown>).code : undefined
+        if (code === 'ticket_not_configured') {
+          // API аудита ещё работает в легаси-режиме: ничего не списано, но и отчёта нет.
+          setState({
+            kind: 'error',
+            message: 'Сервис обновляется. Повторите запуск отчёта через пару минут.',
+          })
+          return 'needs-legacy'
+        }
         const detail = pickString(data, ['detail', 'message', 'error'])
         setState({ kind: 'error', message: detail ?? `Не удалось сформировать отчёт (HTTP ${res.status}).` })
-        return false
+        return 'failed'
       }
+      // План берём из ответа сервера: он знает, какой тариф реально оплачен.
+      const spentRecord = data && typeof data === 'object' ? (data as Record<string, unknown>) : {}
+      const spentPlan: PaidTier =
+        spentRecord.plan === 'business' || spentRecord.plan === 'choice' || spentRecord.plan === 'full'
+          ? spentRecord.plan
+          : plan
       const report = typeof data === 'string' ? data : pickString(data, ['report', 'markdown', 'result'])
       const rawPdf = pickString(data, ['pdf_url', 'pdfUrl', 'download_url'])
       const pdfUrl = isRealPdfUrl(rawPdf) ? rawPdf : null
@@ -392,11 +441,11 @@ export function PremiumUpsell({
         generating.current = false
         releaseReportGeneration()
         setState({ kind: 'error', message: 'Сервер не вернул текст отчёта. Попробуйте ещё раз.' })
-        return false
+        return 'failed'
       }
       let chatUrl: string | null = null
       let emailSent = false
-      const chatDays = plan === 'business' ? 30 : 14
+      const chatDays = spentPlan === 'business' ? 30 : 14
       let activeDays = chatDays
       if (report) {
         try {
@@ -407,7 +456,8 @@ export function PremiumUpsell({
               report,
               email: current.email,
               jurisdiction: current.jurisdiction,
-              tier: plan === 'business' ? 'business' : 'full',
+              tier: spentPlan === 'business' ? 'business' : 'full',
+              ...(accessToken ? { accessToken } : {}),
             }),
           })
           const session = (await sessionRes.json().catch(() => null)) as {
@@ -426,14 +476,16 @@ export function PremiumUpsell({
       delivered.current = true
       onFullReportRef.current({ pdfUrl, report, chatUrl })
       setState({ kind: 'done', pdfUrl, report, chatUrl, emailSent, activeDays })
-      return true
+      return 'done'
     } catch {
       generating.current = false
       releaseReportGeneration()
       setState({ kind: 'error', message: 'Не удалось связаться с сервером. Проверьте подключение и попробуйте снова.' })
-      return false
+      return 'failed'
     }
-  }, [consentVersion, deepUrl])
+    },
+    [consentVersion, deepUrl],
+  )
 
   const loadCredits = useCallback(async (email: string) => {
     const res = await fetch(`/api/credits?email=${encodeURIComponent(email)}`)
@@ -445,32 +497,100 @@ export function PremiumUpsell({
     return remaining
   }, [])
 
-  const claimAndGenerate = useCallback(async (preferred?: PaidTier) => {
-    if (delivered.current) return
-    const email = requestRef.current.email.trim()
-    const res = await fetch('/api/credits', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, plan: preferred }),
-    })
-    const data = (await res.json().catch(() => null)) as { claimId?: unknown; plan?: unknown; error?: unknown } | null
-    if (!res.ok || typeof data?.claimId !== 'string') {
-      const message = typeof data?.error === 'string' ? data.error : 'Не удалось списать проект с баланса.'
-      setState({ kind: 'error', message })
-      setOpen(true)
-      return
-    }
-    const plan: PaidTier = data.plan === 'business' || data.plan === 'choice' || data.plan === 'full' ? data.plan : 'full'
-    const ok = await generateFullReport(plan)
-    if (!ok) {
-      await fetch('/api/credits', {
+  const claimAndGenerate = useCallback(
+    async (preferred?: PaidTier) => {
+      if (delivered.current) return
+      const email = requestRef.current.email.trim()
+      const preferredTier: PaidTier = preferred ?? 'full'
+
+      // 1) Ключ доступа получает браузер, первым открывший сайт после оплаты.
+      //    Хранится локально, так что клиенту не нужно ходить по почте за подтверждением.
+      let accessToken = getStoredAccessToken()
+      if (!accessToken) {
+        try {
+          const claimRes = await fetch('/api/credits/claim', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          })
+          const claimData = (await claimRes.json().catch(() => null)) as { token?: unknown } | null
+          if (claimRes.ok && typeof claimData?.token === 'string' && claimData.token) {
+            accessToken = claimData.token
+            storeAccessToken(accessToken)
+          }
+        } catch {}
+      }
+
+      // 2) По ключу берём одноразовый тикет: API аудита сам проверит оплату и спишет проект.
+      if (accessToken) {
+        let ticket: string | null = null
+        try {
+          const res = await fetch('/api/audit/ticket', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, tier: preferredTier, accessToken }),
+          })
+          const data = (await res.json().catch(() => null)) as { ticket?: unknown; error?: unknown } | null
+          if (res.ok && typeof data?.ticket === 'string') {
+            ticket = data.ticket
+          } else {
+            if (res.status === 401) clearAccessToken()
+            setState({
+              kind: 'error',
+              message: typeof data?.error === 'string' ? data.error : 'Не удалось запустить отчёт. Попробуйте ещё раз.',
+            })
+            setOpen(true)
+            return
+          }
+        } catch {
+          setState({ kind: 'error', message: 'Не удалось связаться с сервером. Попробуйте ещё раз.' })
+          setOpen(true)
+          return
+        }
+        // 'needs-legacy' и 'failed' уже показали свою ошибку; кредит при этом не списан.
+        await generateFullReport(preferredTier, ticket, accessToken)
+        await loadCredits(email)
+        return
+      }
+
+      // 3) Легаси-режим, пока ключи и тикеты не включены: списание через сайт.
+      const res = await fetch('/api/credits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'restore', claimId: data.claimId }),
-      }).catch(() => undefined)
-    }
-    await loadCredits(email)
-  }, [generateFullReport, loadCredits])
+        body: JSON.stringify({ email, plan: preferredTier }),
+      })
+      const data = (await res.json().catch(() => null)) as {
+        claimId?: unknown
+        plan?: unknown
+        error?: unknown
+        code?: unknown
+      } | null
+      if (!res.ok || typeof data?.claimId !== 'string') {
+        setState({
+          kind: 'error',
+          message:
+            data?.code === 'credits_locked'
+              ? 'Оплаченные проекты открываются в браузере, где вы платили, или по ссылке из письма с отчётом.'
+              : typeof data?.error === 'string'
+                ? data.error
+                : 'Не удалось списать проект с баланса.',
+        })
+        setOpen(true)
+        return
+      }
+      const plan: PaidTier = data.plan === 'business' || data.plan === 'choice' || data.plan === 'full' ? data.plan : 'full'
+      const outcome = await generateFullReport(plan)
+      if (outcome !== 'done') {
+        await fetch('/api/credits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'restore', claimId: data.claimId }),
+        }).catch(() => undefined)
+      }
+      await loadCredits(email)
+    },
+    [generateFullReport, loadCredits],
+  )
 
   const waitForCredits = useCallback(
     async (email: string, baseline: number) => {
