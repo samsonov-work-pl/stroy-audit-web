@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   AlertTriangle,
   ArrowRight,
@@ -27,8 +27,17 @@ import { JurisdictionBadge, JurisdictionPicker } from '@/components/jurisdiction
 import { useSubmitCooldown } from '@/hooks/use-submit-cooldown'
 import { PremiumUpsell } from '@/components/premium-upsell'
 import { ExpressReport } from '@/components/express-report'
-import { DEVELOPER_EXAMPLE_REPORT_URL, ExampleReportLink } from '@/components/example-report-link'
-import { loadAuditChoice, TIER_EVENT, TIER_FRAME_COLOR, type AuditTier } from '@/lib/audit-tier'
+import { ExampleReportLink } from '@/components/example-report-link'
+import {
+  isPaidTier,
+  loadAuditChoice,
+  saveAuditChoice,
+  tierPriceText,
+  TIER_EVENT,
+  TIER_META,
+  type AuditTier,
+} from '@/lib/audit-tier'
+import { currencyFont } from '@/lib/fx'
 import { buildAuditTeaser } from '@/lib/audit-teaser'
 import {
   clearStoredAudit,
@@ -310,6 +319,10 @@ export function UploadCard() {
   }
 
   const submitting = status === 'submitting'
+  const tierMeta = auditChoice ? TIER_META[auditChoice] : null
+  const tierPrice = auditChoice ? tierPriceText(auditChoice) : null
+  const tierThenLabel = auditChoice && isPaidTier(auditChoice) ? TIER_META[auditChoice].thenLabel : null
+  const showTierSegment = Boolean(tierThenLabel && tierPrice && !submitting && !cooldown.active)
 
   return (
     <div className="flex flex-col gap-4">
@@ -319,25 +332,62 @@ export function UploadCard() {
         </p>
       )}
 
-      <form
-        id="upload"
-        onSubmit={handleSubmit}
-        aria-busy={submitting}
-        className={cn(cardClass, 'flex scroll-mt-24 flex-col gap-4 p-5 text-left transition-colors sm:p-6')}
-        style={auditChoice ? { borderColor: TIER_FRAME_COLOR[auditChoice] } : undefined}
-        aria-label="Загрузка проекта для аудита"
+      <div
+        className={cn('rounded-2xl transition-all duration-500', tierMeta && 'tier-ring p-[2px]')}
+        style={
+          tierMeta
+            ? ({
+                '--tier-c1': tierMeta.color,
+                '--tier-c2': tierMeta.gradientTo,
+                boxShadow: `0 16px 44px -18px ${tierMeta.color}55`,
+              } as CSSProperties)
+            : undefined
+        }
       >
+        <form
+          id="upload"
+          onSubmit={handleSubmit}
+          aria-busy={submitting}
+          className={cn(
+            cardClass,
+            'flex scroll-mt-24 flex-col gap-4 p-5 text-left transition-colors sm:p-6',
+            tierMeta && 'rounded-[16px] border-transparent',
+          )}
+          aria-label="Загрузка проекта для аудита"
+        >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-bold">Новый аудит</h2>
+            {tierMeta && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                style={{
+                  color: tierMeta.color,
+                  background: `${tierMeta.color}14`,
+                  border: `1px solid ${tierMeta.color}33`,
+                }}
+              >
+                <span className="size-1.5 rounded-full" style={{ background: tierMeta.color }} aria-hidden="true" />
+                {tierMeta.name}
+                {tierPrice ? ` · ${tierPrice}` : ''}
+                <button
+                  type="button"
+                  onClick={() => saveAuditChoice('express')}
+                  className="ml-0.5 rounded-full p-1 opacity-50 transition-opacity hover:opacity-100"
+                  aria-label="Сбросить тариф"
+                  style={{ color: tierMeta.color }}
+                >
+                  <X className="size-3" aria-hidden="true" />
+                </button>
+              </span>
+            )}
             {jurisdiction && <JurisdictionBadge value={jurisdiction} />}
           </div>
           <span className="font-mono text-xs text-muted-foreground">до {MAX_SIZE_MB} МБ</span>
         </div>
 
         <p className="text-center text-sm leading-relaxed text-foreground">
-          Бесплатный экспресс-анализ за несколько минут: загрузите проект и сразу увидите количество
-          ошибок и первые критические замечания без оплаты и привязки карты.
+          {tierMeta ? tierMeta.hint : TIER_META.express.hint}
         </p>
 
         <div
@@ -424,6 +474,10 @@ export function UploadCard() {
             invalid={jurisdictionMissing}
           />
         )}
+
+        <p className="text-center text-xs text-muted-foreground">
+          Исходные файлы удаляются сразу после обработки и не хранятся на сервере
+        </p>
 
         <div className="flex flex-col gap-2">
           <label htmlFor="email" className="text-xs font-medium text-muted-foreground">
@@ -513,7 +567,10 @@ export function UploadCard() {
           disabled={submitting || !file || !jurisdiction || !consentAccepted}
           aria-disabled={cooldown.active || undefined}
           className={cn(
-            'group inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-all hover:bg-black/85 active:scale-[0.99] disabled:opacity-50',
+            'group flex w-full rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-all hover:bg-black/85 active:scale-[0.99] disabled:opacity-50',
+            showTierSegment
+              ? 'h-auto flex-col items-stretch overflow-hidden md:h-11 md:flex-row md:items-stretch'
+              : 'h-11 items-center justify-center gap-2',
             submitting ? 'disabled:cursor-wait disabled:opacity-70' : 'disabled:cursor-not-allowed disabled:hover:bg-primary',
             cooldown.active && !submitting && 'cursor-not-allowed opacity-50 hover:bg-primary active:scale-100',
           )}
@@ -532,23 +589,30 @@ export function UploadCard() {
             </>
           ) : (
             <>
-              Запустить бесплатный экспресс-аудит
-              <ArrowRight
-                className="size-4 transition-transform group-hover:translate-x-0.5"
-                aria-hidden="true"
-              />
+              <span className="inline-flex h-11 flex-1 items-center justify-center gap-2 px-4">
+                Запустить бесплатный экспресс-аудит
+                <ArrowRight
+                  className="size-4 transition-transform group-hover:translate-x-0.5"
+                  aria-hidden="true"
+                />
+              </span>
+              {showTierSegment && (
+                <span className="inline-flex flex-col justify-center gap-0.5 border-t border-primary-foreground/25 px-4 py-1.5 text-left leading-tight md:h-11 md:justify-center md:border-l md:border-t-0 md:py-0">
+                  <span className="text-[10px] font-medium tracking-wide text-primary-foreground/80">
+                    {tierThenLabel}
+                  </span>
+                  <span className={cn(currencyFont, 'text-sm font-bold tabular-nums')}>{tierPrice}</span>
+                </span>
+              )}
             </>
           )}
         </button>
 
         <div className="flex flex-col gap-2">
           <ExampleReportLink className="w-full" />
-          <ExampleReportLink href={DEVELOPER_EXAMPLE_REPORT_URL} className="w-full">
-            Посмотреть пример расширенного отчёта
-          </ExampleReportLink>
         </div>
 
-        {submitting ? (
+        {submitting && (
           <div className="flex flex-col gap-2" role="status">
             <div className="h-1 overflow-hidden rounded-full bg-muted">
               <div className="h-full w-1/3 animate-[audit-progress_1.4s_ease-in-out_infinite] rounded-full bg-foreground" />
@@ -557,14 +621,11 @@ export function UploadCard() {
               Это может занять несколько минут.
             </p>
           </div>
-        ) : (
-          <p className="text-center text-xs text-muted-foreground">
-            Исходные файлы удаляются сразу после обработки и не хранятся на сервере
-          </p>
         )}
 
         <ConsentAccordion />
       </form>
+      </div>
 
       <ConsentDialog
         open={termsOpen}
@@ -686,3 +747,4 @@ function AuditResponse({ result, onReset }: { result: AuditResult; onReset: () =
     </section>
   )
 }
+

@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Check } from 'lucide-react'
 import { useRubRates } from '@/components/fx-rates'
 import { Reveal } from '@/components/reveal'
 import { SectionHeading } from '@/components/how-it-works'
-import { loadAuditChoice, saveAuditChoice, TIER_EVENT, TIER_FRAME_COLOR, type AuditTier } from '@/lib/audit-tier'
+import { loadAuditChoice, saveAuditChoice, TIER_EVENT, TIER_META, type AuditTier } from '@/lib/audit-tier'
 import { TariffPrices } from '@/components/tariff-prices'
 import { TARIFF_RUB } from '@/lib/fx'
 import { cn } from '@/lib/utils'
@@ -90,58 +90,105 @@ export function Pricing() {
         <SectionHeading eyebrow="Тарифы" title="Дешевле одной ошибки в проекте" />
 
         <ul className="grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {plans.map((plan, i) => (
-            <Reveal as="li" key={plan.name} delay={i * 100}>
-              <div
-                className={cn(
-                  'relative flex h-full flex-col gap-7 rounded-2xl border bg-card p-7 transition-all duration-300 hover:-translate-y-1 md:p-8',
-                  plan.popular
-                    ? 'border-foreground shadow-[0_20px_50px_-20px_rgba(0,0,0,0.25)]'
-                    : 'border-border hover:border-foreground/20 hover:shadow-[0_12px_32px_-12px_rgba(0,0,0,0.15)]',
-                )}
-                style={selected === plan.tier ? { borderColor: TIER_FRAME_COLOR[plan.tier] } : undefined}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-base font-bold tracking-tight">{plan.name}</h3>
-                  {plan.popular && (
-                    <span className="rounded-full bg-foreground px-2.5 py-1 text-[11px] font-semibold text-background">
-                      Популярный
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  <TariffPrices amountRub={plan.amountRub} />
-                  <p className="text-sm text-muted-foreground">{plan.period}</p>
-                </div>
-
-                <ul className="flex flex-1 flex-col gap-3 border-t border-border pt-7">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-3 text-sm">
-                      <Check className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <a
-                  href="#upload"
-                  aria-pressed={selected === plan.tier}
-                  onClick={() => saveAuditChoice(plan.tier)}
+          {plans.map((plan, i) => {
+            const isSelected = selected === plan.tier
+            const meta = TIER_META[plan.tier]
+            return (
+              <Reveal as="li" key={plan.name} delay={i * 100}>
+                <div
                   className={cn(
-                    'inline-flex h-11 items-center justify-center rounded-lg border text-sm font-semibold transition-all active:scale-[0.99]',
-                    plan.popular
-                      ? 'border-transparent bg-primary text-primary-foreground hover:bg-black/85'
-                      : 'border-border bg-card text-foreground hover:border-foreground',
+                    'h-full rounded-2xl p-[2px] transition-all duration-500',
+                    isSelected ? 'tier-ring' : 'border border-transparent',
                   )}
-                  style={selected === plan.tier ? { borderColor: TIER_FRAME_COLOR[plan.tier] } : undefined}
+                  style={
+                    isSelected
+                      ? ({
+                          '--tier-c1': meta.color,
+                          '--tier-c2': meta.gradientTo,
+                          boxShadow: `0 16px 44px -18px ${meta.color}55`,
+                        } as CSSProperties)
+                      : undefined
+                  }
                 >
-                  {selected === plan.tier ? 'Выбран' : 'Выбрать'}
-                  <span className="sr-only"> тариф «{plan.name}»</span>
-                </a>
-              </div>
-            </Reveal>
-          ))}
+                  <div
+                    className={cn(
+                      'relative flex h-full flex-col gap-7 rounded-[16px] border bg-card p-7 transition-all duration-300 hover:-translate-y-1 md:p-8',
+                      isSelected
+                        ? 'border-transparent'
+                        : plan.popular
+                          ? 'border-foreground shadow-[0_20px_50px_-20px_rgba(0,0,0,0.25)]'
+                          : 'border-border hover:border-foreground/20 hover:shadow-[0_12px_32px_-12px_rgba(0,0,0,0.15)]',
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="flex items-center gap-2 text-base font-bold tracking-tight">
+                        {isSelected && (
+                          <span
+                            className="grid size-5 shrink-0 place-items-center rounded-full text-white"
+                            style={{ background: `linear-gradient(135deg, ${meta.color}, ${meta.gradientTo})` }}
+                            aria-hidden="true"
+                          >
+                            <Check className="size-3" aria-hidden="true" />
+                          </span>
+                        )}
+                        {plan.name}
+                      </h3>
+                      {plan.popular && (
+                        <span className="rounded-full bg-foreground px-2.5 py-1 text-[11px] font-semibold text-background">
+                          Популярный
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <TariffPrices amountRub={plan.amountRub} />
+                      <p className="text-sm text-muted-foreground">{plan.period}</p>
+                    </div>
+
+                    <ul className="flex flex-1 flex-col gap-3 border-t border-border pt-7">
+                      {plan.features.map((f) => (
+                        <li key={f} className="flex items-start gap-3 text-sm">
+                          <Check className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <a
+                      href="#upload"
+                      aria-pressed={isSelected}
+                      onClick={() => saveAuditChoice(plan.tier)}
+                      className={cn(
+                        'inline-flex h-11 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-all active:scale-[0.99]',
+                        isSelected
+                          ? 'border-transparent text-primary-foreground'
+                          : plan.popular
+                            ? 'border-transparent bg-primary text-primary-foreground hover:bg-black/85'
+                            : 'border-border bg-card text-foreground hover:border-foreground',
+                      )}
+                      style={
+                        isSelected
+                          ? {
+                              background: `linear-gradient(135deg, ${meta.color}, ${meta.gradientTo})`,
+                            }
+                          : undefined
+                      }
+                    >
+                      {isSelected ? (
+                        <>
+                          <Check className="size-4" aria-hidden="true" />
+                          Выбран
+                        </>
+                      ) : (
+                        'Выбрать'
+                      )}
+                      <span className="sr-only"> тариф «{plan.name}»</span>
+                    </a>
+                  </div>
+                </div>
+              </Reveal>
+            )
+          })}
         </ul>
 
         <div className="mx-auto flex max-w-3xl flex-col gap-2 text-center text-sm leading-relaxed text-muted-foreground">
