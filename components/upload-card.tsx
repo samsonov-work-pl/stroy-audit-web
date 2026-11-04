@@ -597,7 +597,7 @@ export function UploadCard() {
                 />
               </span>
               {showTierSegment && (
-                <span className="inline-flex flex-col justify-center gap-0.5 border-t border-primary-foreground/25 px-4 py-1.5 text-left leading-tight md:h-11 md:justify-center md:border-l md:border-t-0 md:py-0">
+                <span className="inline-flex flex-col justify-center gap-0.5 border-t border-primary-foreground/25 px-4 py-1.5 text-center leading-tight md:h-11 md:justify-center md:border-l md:border-t-0 md:py-0 md:text-left">
                   <span className="text-[10px] font-medium tracking-wide text-primary-foreground/80">
                     {tierThenLabel}
                   </span>
