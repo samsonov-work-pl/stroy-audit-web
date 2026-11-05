@@ -310,30 +310,53 @@ function pickString(data: unknown, keys: string[]) {
 const PAY_BUTTON_CLASS =
   'inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/85'
 
+/** Подсказка рядом с названием тарифа: главное отличие тарифов — число проектов. */
+const TIER_PAY_HINT: Record<PaidTier, string> = {
+  full: '1 проект',
+  choice: '3 проекта',
+  business: '10 проектов',
+}
+
 function TierPayButton({
   tier,
   label,
+  primary,
   onPay,
 }: {
   tier: PaidTier
   label: string
+  primary?: boolean
   onPay: () => void
 }) {
   const name = tariffName(tier)
   return (
-    <div
-      className="inline-flex h-11 w-full items-center justify-center gap-1 rounded-lg border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-background/90"
-      style={{ borderColor: TIER_FRAME_COLOR[tier] }}
+    // Вся кнопка — одно действие: сразу открывает окно оплаты Lava, без перехода к витрине тарифов.
+    <button
+      type="button"
+      onClick={onPay}
       aria-label={label}
+      className={cn(
+        'flex h-11 w-full items-center justify-between gap-2 rounded-lg px-4 text-sm transition-colors',
+        primary
+          ? 'bg-background font-bold text-foreground shadow-lg hover:bg-background/90'
+          : 'border border-background/25 font-semibold text-background hover:border-background/50 hover:bg-background/10',
+      )}
     >
-      <button type="button" onClick={onPay} className="inline-flex items-center gap-2 text-left">
-        <Sparkles className="size-4 shrink-0" aria-hidden="true" />
+      <span className="inline-flex min-w-0 items-center gap-2">
+        <span
+          className="size-2 shrink-0 rounded-full"
+          style={{ background: TIER_FRAME_COLOR[tier] }}
+          aria-hidden="true"
+        />
+        <span className="truncate">{name}</span>
+        <span className={cn('truncate text-xs font-medium', primary ? 'text-foreground/60' : 'text-background/60')}>
+          {TIER_PAY_HINT[tier]}
+        </span>
+      </span>
+      <span className="shrink-0 text-base font-bold tabular-nums">
         {formatGrouped(TARIFF_RUB[tier])} <span className={currencyFont}>₽</span>
-      </button>
-      <a href="#pricing" className="underline decoration-1 underline-offset-2 hover:opacity-70">
-        {name}
-      </a>
-    </div>
+      </span>
+    </button>
   )
 }
 
@@ -736,24 +759,31 @@ export function PremiumUpsell({
             <p className="max-w-xs text-[11px] leading-relaxed text-background/60">
               В окне оплаты укажите {request.email}. Оставшиеся проекты открываются с этой почты.
             </p>
-            <div className="flex flex-col items-stretch gap-1.5">
+            <div className="flex flex-col gap-2">
               <TierPayButton
                 tier="full"
+                primary
                 label={`Открыть весь список за ${formatGrouped(TARIFF_RUB.full)} ₽`}
                 onPay={() => openPayment('full')}
               />
+              <TierPayButton
+                tier="choice"
+                label={`Оплатить ${formatGrouped(TARIFF_RUB.choice)} ₽ за 3 проекта`}
+                onPay={() => openPayment('choice')}
+              />
+              <TierPayButton
+                tier="business"
+                label={`Оплатить ${formatGrouped(TARIFF_RUB.business)} ₽ за 10 проектов`}
+                onPay={() => openPayment('business')}
+              />
               <ExampleReportLink tone="onDark">Пример полного отчёта</ExampleReportLink>
+              <a
+                href="#pricing"
+                className="text-center text-[11px] font-medium text-background/60 underline-offset-2 hover:text-background hover:underline"
+              >
+                Сравнить тарифы
+              </a>
             </div>
-            <TierPayButton
-              tier="choice"
-              label={`Оплатить ${formatGrouped(TARIFF_RUB.choice)} ₽ за 3 проекта`}
-              onPay={() => openPayment('choice')}
-            />
-            <TierPayButton
-              tier="business"
-              label={`Оплатить ${formatGrouped(TARIFF_RUB.business)} ₽ за 10 проектов`}
-              onPay={() => openPayment('business')}
-            />
           </div>
         </div>
       </div>
@@ -1037,3 +1067,4 @@ function LavaWidgetDialog({
     </dialog>
   )
 }
+
