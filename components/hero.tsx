@@ -25,7 +25,7 @@ export function Hero() {
           </p>
         </div>
         <div
-          className="animate-fade-up flex w-full max-w-xl flex-col gap-4"
+          className="animate-fade-up flex w-full flex-col gap-4"
           style={{ animationDelay: '320ms' }}
         >
           <UploadCard />
