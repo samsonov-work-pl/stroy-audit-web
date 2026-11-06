@@ -333,7 +333,10 @@ export function UploadCard() {
       )}
 
       <div
-        className={cn('rounded-2xl transition-all duration-500', tierMeta && 'tier-ring p-[2px]')}
+        className={cn(
+          'mx-auto w-full max-w-xl rounded-2xl transition-all duration-500',
+          tierMeta && 'tier-ring p-[2px]',
+        )}
         style={
           tierMeta
             ? ({
@@ -692,6 +695,7 @@ function AuditResponse({ result, onReset }: { result: AuditResult; onReset: () =
         </p>
       )}
 
+      <div className="mx-auto w-full max-w-4xl">
       {teaser ? (
         <ExpressReport teaser={teaser} fallback={rawContent} />
       ) : isText && !content.trim().startsWith('<') ? (
@@ -707,6 +711,7 @@ function AuditResponse({ result, onReset }: { result: AuditResult; onReset: () =
           {content}
         </pre>
       )}
+      </div>
 
       {showUpsell && (
         <PremiumUpsell
