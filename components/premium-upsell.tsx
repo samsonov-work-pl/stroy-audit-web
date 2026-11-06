@@ -15,7 +15,13 @@ import {
   publishPaymentSuccess,
   releaseReportGeneration,
 } from '@/lib/lava-widget'
-import { createLavaInvoice } from '@/lib/lava-invoice'
+import {
+  clearPendingInvoice,
+  createLavaInvoice,
+  recallPendingInvoice,
+  rememberPendingInvoice,
+  verifyLavaInvoice,
+} from '@/lib/lava-invoice'
 import { currencyFont, formatGrouped, TARIFF_RUB } from '@/lib/fx'
 import { LEGAL_EMAIL, LEGAL_MAILTO } from '@/lib/legal'
 import { cn } from '@/lib/utils'
@@ -659,17 +665,29 @@ export function PremiumUpsell({
   }, [unlockPaidReport])
 
   // Возврат покупателя с оплаты Lava: successful_return_url ведёт на ?payment=success.
-  // Убираем параметры из адреса, чтобы обновление страницы не запускало отчёт повторно.
+  // До очистки адреса просим сервер сверить счёт с Lava API и начислить кредиты —
+  // страховка от потерянного вебхука. Убираем параметры из адреса, чтобы
+  // обновление страницы не запускало отчёт повторно.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('payment') !== 'success' && params.get('status') !== 'success') return
     const paid = loadSelectedTier()
+    const invoiceId = params.get('invoiceId') || recallPendingInvoice()
     params.delete('payment')
     params.delete('status')
     params.delete('invoiceId')
     try {
       window.history.replaceState(null, '', `${window.location.pathname}${params.size ? `?${params}` : ''}`)
     } catch {}
+    if (invoiceId) {
+      // Fire-and-forget: ошибки не показываем — unlockPaidReport ниже сам
+      // дождётся кредитов и сообщит, если их нет.
+      void verifyLavaInvoice(CHAT_API_URL || 'https://stroy-audit-api.onrender.com', invoiceId)
+        .then((credited) => {
+          if (credited) clearPendingInvoice()
+        })
+        .catch(() => {})
+    }
     void unlockPaidReport(paid)
   }, [unlockPaidReport])
 
@@ -1033,7 +1051,10 @@ function LavaCheckoutDialog({
     setPhase('creating')
     setMessage(null)
     createLavaInvoice(CHAT_API_URL || 'https://stroy-audit-api.onrender.com', email.trim(), tier)
-      .then((paymentUrl) => {
+      .then(({ paymentUrl, invoiceId }) => {
+        // Id счёта нужен после возврата с Lava: по нему сайт попросит сервер
+        // сверить оплату напрямую с Lava API (страховка от потерянного вебхука).
+        if (invoiceId) rememberPendingInvoice(invoiceId)
         if (!cancelled) window.location.assign(paymentUrl)
       })
       .catch((error: unknown) => {
