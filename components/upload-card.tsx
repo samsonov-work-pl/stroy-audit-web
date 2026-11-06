@@ -62,7 +62,7 @@ function parseRetryAfterMs(header: string | null) {
   return Number.isNaN(date) ? null : Math.max(0, date - Date.now())
 }
 const MAX_SIZE_MB = 50
-const REQUEST_TIMEOUT_MS = 180_000
+const REQUEST_TIMEOUT_MS = 300_000
 const CONSENT_VERSION = '2026-10-21'
 
 type Status = 'idle' | 'submitting' | 'success' | 'error'
