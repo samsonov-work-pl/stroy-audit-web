@@ -8,9 +8,6 @@ import { getJurisdiction, type Jurisdiction } from '@/components/jurisdiction-pr
 import { isPaidTier, loadSelectedTier, saveSelectedTier, TIER_EVENT, TIER_FRAME_COLOR, type PaidTier } from '@/lib/audit-tier'
 import {
   claimReportGeneration,
-  lavaWidgetEnvName,
-  lavaWidgetId,
-  lavaWidgetSrc,
   PAYMENT_CHANNEL,
   PAYMENT_SIGNAL_KEY,
   paymentSuccessFromMessage,
@@ -18,6 +15,7 @@ import {
   publishPaymentSuccess,
   releaseReportGeneration,
 } from '@/lib/lava-widget'
+import { createLavaInvoice } from '@/lib/lava-invoice'
 import { currencyFont, formatGrouped, TARIFF_RUB } from '@/lib/fx'
 import { LEGAL_EMAIL, LEGAL_MAILTO } from '@/lib/legal'
 import { cn } from '@/lib/utils'
@@ -387,7 +385,6 @@ export function PremiumUpsell({
   )
   const amountRub = TARIFF_RUB[tier]
   const features = tariffFeatures(tier)
-  const widgetId = lavaWidgetId(tier)
   const generating = useRef(false)
   const delivered = useRef(Boolean(initialDeep))
   const requestRef = useRef(request)
@@ -661,6 +658,21 @@ export function PremiumUpsell({
     }
   }, [unlockPaidReport])
 
+  // Возврат покупателя с оплаты Lava: successful_return_url ведёт на ?payment=success.
+  // Убираем параметры из адреса, чтобы обновление страницы не запускало отчёт повторно.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('payment') !== 'success' && params.get('status') !== 'success') return
+    const paid = loadSelectedTier()
+    params.delete('payment')
+    params.delete('status')
+    params.delete('invoiceId')
+    try {
+      window.history.replaceState(null, '', `${window.location.pathname}${params.size ? `?${params}` : ''}`)
+    } catch {}
+    void unlockPaidReport(paid)
+  }, [unlockPaidReport])
+
   function handleChatCreated(chatUrl: string) {
     if (state.kind !== 'done') return
     const next = {
@@ -757,7 +769,7 @@ export function PremiumUpsell({
               </button>
             )}
             <p className="max-w-xs text-[11px] leading-relaxed text-background/60">
-              В окне оплаты укажите {request.email}. Оставшиеся проекты открываются с этой почты.
+              Счёт оформляем на {request.email}. Оставшиеся проекты открываются с этой почты.
             </p>
             <div className="flex flex-col gap-2">
               <TierPayButton
@@ -807,10 +819,10 @@ export function PremiumUpsell({
         }}
         onChatCreated={handleChatCreated}
       />
-      <LavaWidgetDialog
+      <LavaCheckoutDialog
         open={payOpen}
         tier={tier}
-        widgetId={widgetId}
+        email={request.email}
         onClose={() => setPayOpen(false)}
       />
     </>
@@ -991,19 +1003,22 @@ function DeepAuditDialog({
   )
 }
 
-function LavaWidgetDialog({
+function LavaCheckoutDialog({
   open,
   tier,
-  widgetId,
+  email,
   onClose,
 }: {
   open: boolean
   tier: PaidTier
-  widgetId: string | null
+  email: string
   onClose: () => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const titleId = useId()
+  const [phase, setPhase] = useState<'creating' | 'error'>('creating')
+  const [message, setMessage] = useState<string | null>(null)
+  const [runId, setRunId] = useState(0)
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -1012,16 +1027,35 @@ function LavaWidgetDialog({
     else if (!open && dialog.open) dialog.close()
   }, [open])
 
+  useEffect(() => {
+    if (!open || !email.trim()) return
+    let cancelled = false
+    setPhase('creating')
+    setMessage(null)
+    createLavaInvoice(CHAT_API_URL || 'https://stroy-audit-api.onrender.com', email.trim(), tier)
+      .then((paymentUrl) => {
+        if (!cancelled) window.location.assign(paymentUrl)
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        setPhase('error')
+        setMessage(error instanceof Error ? error.message : 'Не удалось создать счёт. Попробуйте ещё раз.')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, email, tier, runId])
+
   return (
     <dialog
       ref={dialogRef}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault()
-        onClose()
+        if (phase === 'error') onClose()
       }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose()
+        if (event.target === event.currentTarget && phase === 'error') onClose()
       }}
       className="m-auto w-[calc(100%-2rem)] max-w-[540px] rounded-2xl border bg-card p-0 text-foreground shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-sm"
       style={{ borderColor: TIER_FRAME_COLOR[tier] }}
@@ -1033,35 +1067,44 @@ function LavaWidgetDialog({
               Оплата: {tariffName(tier)}
             </h2>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              После оплаты подробный отчёт откроется здесь же.
+              Сейчас откроется страница оплаты Lava.top. После неё вы вернётесь сюда — подробный отчёт
+              откроется здесь же.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Закрыть"
-          >
-            <X className="size-4" aria-hidden="true" />
-          </button>
+          {phase === 'error' && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Закрыть"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
-        {widgetId ? (
-          <div className="flex justify-center">
-            <iframe
-              title="lava.top"
-              src={lavaWidgetSrc(widgetId)}
-              width={300}
-              height={50}
-              referrerPolicy="origin"
-              className="block max-w-full border-0"
-              style={{ border: 'none' }}
-            />
-          </div>
-        ) : (
-          <p role="alert" className="text-sm text-warning">
-            Для этого тарифа нужен свой Web-Widget. В кабинете Lava.top сгенерируйте код и вставьте его UUID в
-            переменную {lavaWidgetEnvName(tier)}.
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Счёт оформляем на <span className="font-medium text-foreground">{email}</span> — оставшиеся
+          проекты открываются с этой почты.
+        </p>
+        {phase === 'creating' && (
+          <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            Готовим страницу оплаты…
           </p>
+        )}
+        {phase === 'error' && (
+          <div className="flex flex-col gap-3">
+            <p role="alert" className="text-sm text-warning">
+              {message}
+            </p>
+            <button
+              type="button"
+              onClick={() => setRunId((value) => value + 1)}
+              className="inline-flex h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/85"
+            >
+              Попробовать ещё раз
+            </button>
+          </div>
         )}
       </div>
     </dialog>
