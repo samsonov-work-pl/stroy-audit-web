@@ -68,7 +68,7 @@ function isLavaPaymentSuccess(event: MessageEvent) {
     .join(' ')
     .toLowerCase()
   if (/fail|cancel|error/.test(status)) return false
-  return status === 'paid' || /(^|[^a-z])success([^a-z]|$)/test(status)
+  return status === 'paid' || /(^|[^a-z])success([^a-z]|$)/.test(status)
 }
 
 /** One tab starts the paid report. The lock expires so a failed attempt can be retried. */
