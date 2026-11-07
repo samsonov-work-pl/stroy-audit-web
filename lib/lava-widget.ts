@@ -1,9 +1,9 @@
 import { isPaidTier, type PaidTier } from '@/lib/audit-tier'
 
-/** Official Lava.top Web-Widget iframe, generated in the cabinet for one product and domain. */
-const WIDGET_HOST = 'https://widget.lava.top'
-const WIDGET_ID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
-
+/** Сигналы «оплата прошла» между вкладками/окнами и лок генерации отчёта.
+ * Виджет Lava больше не используется: оплата идёт через API-инвойсы
+ * (lib/lava-invoice.ts, LavaCheckoutDialog), поэтому мёртвые функции
+ * виджета удалены 7.11.2026. */
 export const PAYMENT_CHANNEL = 'stroyaudit-payment'
 export const PAYMENT_SIGNAL_KEY = 'stroyaudit:payment-success'
 const REPORT_LOCK_KEY = 'stroyaudit:report-lock'
@@ -12,39 +12,6 @@ const REPORT_LOCK_MS = 2 * 60 * 1000
 export type PaymentSuccessMessage = {
   type: 'stroyaudit:payment-success'
   tier: PaidTier
-}
-
-/** Accepts a widget UUID or the HTML/URL copied from Lava.top. */
-export function parseWidgetId(raw: string | null | undefined) {
-  const match = raw?.match(WIDGET_ID)
-  return match?.[0] ?? null
-}
-
-/** Public widget ids already bound to stroyaudit-ai.com. Env overrides them. */
-const WIDGET_FALLBACK: Record<PaidTier, string> = {
-  full: 'bd12812f-4d45-4d23-8ed9-82a8bd93a02f',
-  choice: '726c3fa5-1125-466d-963b-1484ffea0df8',
-  business: 'b3a30fe8-a098-4316-b2e4-8b32956b0312',
-}
-
-export function lavaWidgetEnvName(tier: PaidTier) {
-  if (tier === 'choice') return 'NEXT_PUBLIC_LAVA_WIDGET_CHOICE'
-  if (tier === 'business') return 'NEXT_PUBLIC_LAVA_WIDGET_BUSINESS'
-  return 'NEXT_PUBLIC_LAVA_WIDGET_FULL'
-}
-
-export function lavaWidgetId(tier: PaidTier) {
-  const fromEnv =
-    tier === 'choice'
-      ? process.env.NEXT_PUBLIC_LAVA_WIDGET_CHOICE || process.env.NEXT_PUBLIC_LAVA_WIDGET_DEVELOPER
-      : tier === 'business'
-        ? process.env.NEXT_PUBLIC_LAVA_WIDGET_BUSINESS
-        : process.env.NEXT_PUBLIC_LAVA_WIDGET_FULL
-  return parseWidgetId(fromEnv) ?? parseWidgetId(WIDGET_FALLBACK[tier])
-}
-
-export function lavaWidgetSrc(widgetId: string) {
-  return `${WIDGET_HOST}/${widgetId}`
 }
 
 export function publishPaymentSuccess(tier: PaidTier) {
@@ -101,7 +68,7 @@ function isLavaPaymentSuccess(event: MessageEvent) {
     .join(' ')
     .toLowerCase()
   if (/fail|cancel|error/.test(status)) return false
-  return status === 'paid' || /(^|[^a-z])success([^a-z]|$)/.test(status)
+  return status === 'paid' || /(^|[^a-z])success([^a-z]|$)/test(status)
 }
 
 /** One tab starts the paid report. The lock expires so a failed attempt can be retried. */
