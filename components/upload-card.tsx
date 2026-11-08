@@ -26,6 +26,14 @@ import {
 } from '@/components/jurisdiction-provider'
 import { JurisdictionBadge, JurisdictionPicker } from '@/components/jurisdiction-select'
 import { useSubmitCooldown } from '@/hooks/use-submit-cooldown'
+import { useServerWake } from '@/hooks/use-server-wake'
+import {
+  ensureServerAwake,
+  isAwakeWithin,
+  isRouterReply,
+  markServerAwake,
+  WAKE_INTERVAL_MS,
+} from '@/lib/server-wake'
 import { PremiumUpsell } from '@/components/premium-upsell'
 import { ExpressReport } from '@/components/express-report'
 import { ExampleReportLink } from '@/components/example-report-link'
@@ -139,6 +147,9 @@ export function UploadCard() {
   const [floodWarning, setFloodWarning] = useState(false)
   const [missingPaidProject, setMissingPaidProject] = useState(false)
   const [auditChoice, setAuditChoice] = useState<AuditTier | null>(null)
+  const [waking, setWaking] = useState(false)
+
+  useServerWake()
 
   useEffect(() => {
     const syncChoice = () => setAuditChoice(loadAuditChoice())
@@ -244,6 +255,13 @@ export function UploadCard() {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
+    // Страховка от спящего инстанса: будим сервер ДО отправки файла, а не после 404.
+    if (!isAwakeWithin(WAKE_INTERVAL_MS)) {
+      setWaking(true)
+      await ensureServerAwake(controller.signal)
+      setWaking(false)
+    }
+
     let promptTemplate: string | null = null
     let templateWarning: string | null = null
     try {
@@ -261,7 +279,15 @@ export function UploadCard() {
     if (promptTemplate) body.append('prompt_template', promptTemplate)
 
     try {
-      const res = await fetch(EXPRESS_AUDIT_URL, { method: 'POST', body, signal: controller.signal })
+      let res = await fetch(EXPRESS_AUDIT_URL, { method: 'POST', body, signal: controller.signal })
+      // Роутер Render ответил вместо инстанса (сервер спал): будим и повторяем один раз.
+      if (isRouterReply(res)) {
+        setWaking(true)
+        await ensureServerAwake(controller.signal)
+        setWaking(false)
+        res = await fetch(EXPRESS_AUDIT_URL, { method: 'POST', body, signal: controller.signal })
+      }
+      if (!isRouterReply(res)) markServerAwake()
       if (res.status === 429) {
         const retryAfterMs = parseRetryAfterMs(res.headers.get('Retry-After'))
         if (retryAfterMs && retryAfterMs > SUBMIT_COOLDOWN_MS) cooldown.start(retryAfterMs)
@@ -583,7 +609,7 @@ export function UploadCard() {
           {submitting ? (
             <>
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-              Анализируем проект…
+              {waking ? 'Пробуждаем сервер…' : 'Анализируем проект…'}
             </>
           ) : cooldown.active ? (
             <>
@@ -623,7 +649,9 @@ export function UploadCard() {
               <div className="h-full w-1/3 animate-[audit-progress_1.4s_ease-in-out_infinite] rounded-full bg-foreground" />
             </div>
             <p className="text-center text-xs text-muted-foreground">
-              Это может занять несколько минут.
+              {waking
+                ? 'Пробуждаем сервер — после простоя это может занять до минуты…'
+                : 'Это может занять несколько минут.'}
             </p>
           </div>
         )}
