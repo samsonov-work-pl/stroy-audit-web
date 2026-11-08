@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
@@ -479,7 +480,8 @@ export function UploadCard() {
         )}
 
         <p className="text-center text-xs text-muted-foreground">
-          Исходные файлы удаляются сразу после обработки и не хранятся на сервере
+          Исходные файлы удаляются сразу после обработки и не хранятся на сервере. Сервис не
+          использует файлы cookie, трекеры и всплывающие окна согласия.
         </p>
 
         <div className="flex flex-col gap-2">

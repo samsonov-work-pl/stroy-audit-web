@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ExternalLink, LegalPage } from '@/components/legal-page'
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Политика конфиденциальности" current="/privacy" updated="2 ноября 2026 г.">
+    <LegalPage title="Политика конфиденциальности" current="/privacy" updated="8 ноября 2026 г.">
       <p>
         Политика объясняет, какие данные обрабатывает сервис «СтройАудит.ai», зачем и какие права
         есть у пользователя. Она применяется вместе с <Link href="/offer">Публичной офертой</Link>.
@@ -93,6 +94,12 @@ export default function PrivacyPage() {
           этом устройстве.
         </li>
       </ul>
+      <p>
+        Сервис не использует файлы cookie, веб-маяки и идентифицирующие трекеры, поэтому на сайте
+        нет всплывающих окон согласия на их размещение. Данные пользователя не собираются сверх
+        перечисленного в этом разделе.
+      </p>
+
       <p>
         Сервис не просит паспорт, номер телефона и специальные категории данных. Загружать такие
         сведения в файлах проекта не нужно. Сервис не предназначен для лиц младше 18 лет.
