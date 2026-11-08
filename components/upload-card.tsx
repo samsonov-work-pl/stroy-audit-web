@@ -609,7 +609,7 @@ export function UploadCard() {
           {submitting ? (
             <>
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-              {waking ? 'Пробуждаем сервер…' : 'Анализируем проект…'}
+              {waking ? 'Запускаем аналитический модуль…' : 'Анализируем проект…'}
             </>
           ) : cooldown.active ? (
             <>
@@ -650,7 +650,7 @@ export function UploadCard() {
             </div>
             <p className="text-center text-xs text-muted-foreground">
               {waking
-                ? 'Пробуждаем сервер — после простоя это может занять до минуты…'
+                ? 'Запуск аналитического модуля может занять до минуты…'
                 : 'Это может занять несколько минут.'}
             </p>
           </div>
