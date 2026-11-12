@@ -51,7 +51,7 @@ import { buildAuditTeaser } from '@/lib/audit-teaser'
 import {
   clearStoredAudit,
   loadStoredAudit,
-  loadStoredFile,
+  loadStoredFiles,
   saveDeepReport,
   saveStoredAudit,
   type DeepReport,
@@ -71,6 +71,7 @@ function parseRetryAfterMs(header: string | null) {
   return Number.isNaN(date) ? null : Math.max(0, date - Date.now())
 }
 const MAX_SIZE_MB = 50
+const MAX_FILES = 10
 const REQUEST_TIMEOUT_MS = 300_000
 const CONSENT_VERSION = '2026-10-21'
 
@@ -82,7 +83,7 @@ type AuditResult = {
   data: unknown
   jurisdiction: Jurisdiction
   templateWarning: string | null
-  file: File | null
+  files: File[]
   email: string
   deep?: DeepReport | null
 }
@@ -132,7 +133,7 @@ const cardClass =
 
 export function UploadCard() {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [dragging, setDragging] = useState(false)
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -167,13 +168,13 @@ export function UploadCard() {
       return
     }
     let cancelled = false
-    const restored: AuditResult = { ok: true, ...stored, file: null }
+    const restored: AuditResult = { ok: true, ...stored, files: [] }
     setResult(restored)
     setStatus('success')
-    loadStoredFile().then((storedFile) => {
+    loadStoredFiles().then((storedFiles) => {
       if (cancelled) return
-      if (storedFile) {
-        setResult((current) => (current === restored ? { ...restored, file: storedFile } : current))
+      if (storedFiles.length > 0) {
+        setResult((current) => (current === restored ? { ...restored, files: storedFiles } : current))
         return
       }
       if (paidReturn) setMissingPaidProject(true)
@@ -195,25 +196,41 @@ export function UploadCard() {
     setError(null)
   }
 
-  function clearFile() {
-    setFile(null)
-    setJurisdiction(null)
-    setJurisdictionMissing(false)
+  function removeFile(index: number) {
+    setFiles((current) => current.filter((_, i) => i !== index))
+    if (files.length === 1) {
+      setJurisdiction(null)
+      setJurisdictionMissing(false)
+    }
   }
 
   function pickFile(list: FileList | null) {
-    const picked = list?.[0]
-    if (!picked) return
-    if (!isAllowedFile(picked)) {
-      setError(`Файл «${picked.name}» не подходит. Загрузите PDF, JPEG, PNG, HEIC или Excel.`)
+    const picked = Array.from(list ?? [])
+    if (picked.length === 0) return
+    const next = [...files]
+    let problem: string | null = null
+    for (const candidate of picked) {
+      if (next.length >= MAX_FILES) {
+        problem = `Можно прикрепить не больше ${MAX_FILES} файлов за один запуск — лишние пропущены.`
+        break
+      }
+      if (!isAllowedFile(candidate)) {
+        problem = `Файл «${candidate.name}» не подходит. Загрузите PDF, JPEG, PNG, HEIC или Excel.`
+        continue
+      }
+      if (candidate.size > MAX_SIZE_MB * 1024 * 1024) {
+        problem = `Файл «${candidate.name}» больше ${MAX_SIZE_MB} МБ.`
+        continue
+      }
+      if (next.some((existing) => existing.name === candidate.name && existing.size === candidate.size)) continue
+      next.push(candidate)
+    }
+    if (next.length === 0) {
+      if (problem) setError(problem)
       return
     }
-    if (picked.size > MAX_SIZE_MB * 1024 * 1024) {
-      setError(`Файл «${picked.name}» больше ${MAX_SIZE_MB} МБ.`)
-      return
-    }
-    setError(null)
-    setFile(picked)
+    setError(problem)
+    setFiles(next)
     setJurisdiction(null)
     setJurisdictionMissing(false)
     requestAnimationFrame(() =>
@@ -228,7 +245,7 @@ export function UploadCard() {
       setFloodWarning(true)
       return
     }
-    if (!file) {
+    if (files.length === 0) {
       setError('Добавьте файл проекта.')
       return
     }
@@ -245,10 +262,10 @@ export function UploadCard() {
     setError(null)
     setFloodWarning(false)
     cooldown.start()
-    runAudit(file, jurisdiction)
+    runAudit(files, jurisdiction)
   }
 
-  async function runAudit(file: File, selected: Jurisdiction) {
+  async function runAudit(files: File[], selected: Jurisdiction) {
     setResult(null)
     setStatus('submitting')
 
@@ -271,7 +288,9 @@ export function UploadCard() {
     }
 
     const body = new FormData()
-    body.append('file', file)
+    // Экспресс-аудит бесплатный и однофайловый: проверяем первый файл,
+    // полный отчёт после оплаты сможет взять все файлы запуска.
+    body.append('file', files[0])
     body.append('email', email)
     body.append('consent_accepted', 'true')
     body.append('consent_version', CONSENT_VERSION)
@@ -299,7 +318,7 @@ export function UploadCard() {
           httpStatus: 429,
           jurisdiction: selected,
           templateWarning,
-          file,
+          files,
           email,
           data: `Превышен лимит запросов: сервер временно ограничил количество проверок с вашего устройства.${retryHint}`,
         })
@@ -317,11 +336,11 @@ export function UploadCard() {
         data,
         jurisdiction: selected,
         templateWarning,
-        file,
+        files,
         email,
       })
       if (res.ok) {
-        saveStoredAudit({ httpStatus: res.status, data, jurisdiction: selected, templateWarning, email }, file)
+        saveStoredAudit({ httpStatus: res.status, data, jurisdiction: selected, templateWarning, email }, files)
       } else {
         clearStoredAudit()
       }
@@ -333,7 +352,7 @@ export function UploadCard() {
         httpStatus: 0,
         jurisdiction: selected,
         templateWarning,
-        file,
+        files,
         email,
         data: aborted
           ? 'Сервер не ответил вовремя. Попробуйте ещё раз.'
@@ -443,7 +462,7 @@ export function UploadCard() {
             <UploadCloud className="size-5" aria-hidden="true" />
           </span>
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-semibold">Перетащите файл проекта сюда</p>
+            <p className="text-sm font-semibold">Перетащите файлы проекта сюда</p>
             <p className="text-xs text-muted-foreground">
               или{' '}
               <button
@@ -451,8 +470,11 @@ export function UploadCard() {
                 onClick={() => inputRef.current?.click()}
                 className="font-semibold text-foreground underline underline-offset-4 hover:text-muted-foreground"
               >
-                выберите файл
+                выберите файлы
               </button>
+            </p>
+            <p className="text-[11px] text-muted-foreground/80">
+              Можно прикрепить до {MAX_FILES} файлов одного проекта (АР, конструктив, инженерные разделы).
             </p>
           </div>
           <ul className="flex flex-wrap justify-center gap-1.5" aria-label="Поддерживаемые форматы">
@@ -469,8 +491,9 @@ export function UploadCard() {
             ref={inputRef}
             type="file"
             accept={ACCEPT_ATTR}
+            multiple
             className="sr-only"
-            aria-label="Выбрать файл проекта: PDF, JPEG, PNG, HEIC или Excel"
+            aria-label="Выбрать файлы проекта: PDF, JPEG, PNG, HEIC или Excel"
             onChange={(e) => {
               pickFile(e.target.files)
               e.target.value = ''
@@ -478,24 +501,31 @@ export function UploadCard() {
           />
         </div>
 
-        {file && (
-          <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2">
-            <FileKindIcon file={file} />
-            <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
-            <span className="font-mono text-xs text-muted-foreground">{formatSize(file.size)}</span>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={clearFile}
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-              aria-label={`Удалить ${file.name}`}
-            >
-              <X className="size-3.5" aria-hidden="true" />
-            </button>
-          </div>
+        {files.length > 0 && (
+          <ul className="flex flex-col gap-2" aria-label="Файлы проекта">
+            {files.map((item, index) => (
+              <li
+                key={`${item.name}-${index}`}
+                className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2"
+              >
+                <FileKindIcon file={item} />
+                <span className="min-w-0 flex-1 truncate text-sm">{item.name}</span>
+                <span className="font-mono text-xs text-muted-foreground">{formatSize(item.size)}</span>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => removeFile(index)}
+                  className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  aria-label={`Удалить ${item.name}`}
+                >
+                  <X className="size-3.5" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
 
-        {file && (
+        {files.length > 0 && (
           <JurisdictionPicker
             ref={pickerRef}
             value={jurisdiction}
@@ -561,10 +591,10 @@ export function UploadCard() {
               </span>
             </p>
           </div>
-          {!submitting && (!file || !jurisdiction || !consentAccepted) && (
+          {!submitting && (files.length === 0 || !jurisdiction || !consentAccepted) && (
             <p id="consent-hint" className="text-[11px] text-muted-foreground/80">
-              {!file
-                ? 'Загрузите файл, затем выберите нормы и отметьте согласие'
+              {files.length === 0
+                ? 'Загрузите файл(ы), затем выберите нормы и отметьте согласие'
                 : !jurisdiction
                   ? 'Выберите строительные нормы, чтобы запустить аудит'
                   : 'Отметьте согласие, чтобы запустить аудит'}
@@ -595,7 +625,7 @@ export function UploadCard() {
 
         <button
           type="submit"
-          disabled={submitting || !file || !jurisdiction || !consentAccepted}
+          disabled={submitting || files.length === 0 || !jurisdiction || !consentAccepted}
           aria-disabled={cooldown.active || undefined}
           className={cn(
             'group flex w-full rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-all hover:bg-black/85 active:scale-[0.99] disabled:opacity-50',
@@ -746,7 +776,7 @@ function AuditResponse({ result, onReset }: { result: AuditResult; onReset: () =
       {showUpsell && (
         <PremiumUpsell
           request={{
-            file: result.file,
+            files: result.files,
             email: result.email,
             jurisdiction: result.jurisdiction,
             auditId: teaser?.auditId ?? null,

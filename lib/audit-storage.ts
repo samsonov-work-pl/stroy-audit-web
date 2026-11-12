@@ -55,11 +55,11 @@ export function loadStoredAudit(): StoredAudit | null {
   }
 }
 
-export function saveStoredAudit(audit: Omit<StoredAudit, 'savedAt' | 'deep'>, file: File | null) {
+export function saveStoredAudit(audit: Omit<StoredAudit, 'savedAt' | 'deep'>, files: File[] | null) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...audit, deep: null, savedAt: Date.now() }))
   } catch {}
-  if (file) withFileStore('readwrite', (store) => store.put(file, FILE_KEY)).catch(() => {})
+  if (files && files.length > 0) withFileStore('readwrite', (store) => store.put(files, FILE_KEY)).catch(() => {})
 }
 
 export function saveDeepReport(deep: DeepReport) {
@@ -71,11 +71,19 @@ export function saveDeepReport(deep: DeepReport) {
 }
 
 export async function loadStoredFile(): Promise<File | null> {
+  const files = await loadStoredFiles()
+  return files.length > 0 ? files[0] : null
+}
+
+export async function loadStoredFiles(): Promise<File[]> {
   try {
     const value = await withFileStore<unknown>('readonly', (store) => store.get(FILE_KEY))
-    return value instanceof File ? value : null
+    // Старый формат хранения — одиночный File; новый — массив файлов запуска.
+    if (value instanceof File) return [value]
+    if (Array.isArray(value)) return value.filter((item): item is File => item instanceof File)
+    return []
   } catch {
-    return null
+    return []
   }
 }
 

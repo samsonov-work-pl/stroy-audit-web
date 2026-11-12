@@ -227,12 +227,12 @@ function OpenReportButton({
   )
 }
 
-function projectsWord(count: number) {
+function filesWord(count: number) {
   const mod10 = count % 10
   const mod100 = count % 100
-  if (mod10 === 1 && mod100 !== 11) return 'проект'
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'проекта'
-  return 'проектов'
+  if (mod10 === 1 && mod100 !== 11) return 'файл'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'файла'
+  return 'файлов'
 }
 
 function remarksWord(count: number) {
@@ -256,7 +256,7 @@ function tariffFeatures(tier: PaidTier) {
       'Все замечания со ссылками на нормы',
       'Сравнение рисков и переплат',
       'Рекомендации для строителей и проектировщиков',
-      'PDF по каждому проекту',
+      'PDF-отчёт по каждому аудиту',
       'Чат по каждому отчёту 30 дней',
     ]
   }
@@ -265,7 +265,7 @@ function tariffFeatures(tier: PaidTier) {
       '3 отдельных отчёта',
       'Все замечания со ссылками на нормы',
       'Сравнение рисков и переплат внутри загруженного файла',
-      'PDF по каждому проекту',
+      'PDF-отчёт по каждому аудиту',
       'Чат по каждому отчёту 14 дней',
     ]
   }
@@ -284,13 +284,13 @@ function tariffName(tier: PaidTier) {
 }
 
 function tariffPeriod(tier: PaidTier) {
-  if (tier === 'choice') return '3 проекта, разовая оплата'
-  if (tier === 'business') return '10 проектов, разовая оплата'
-  return 'один проект, разовая оплата'
+  if (tier === 'choice') return '3 файла, разовая оплата'
+  if (tier === 'business') return '10 файлов, разовая оплата'
+  return 'один файл, разовая оплата'
 }
 
 export type DeepAuditRequest = {
-  file: File | null
+  files: File[]
   email: string
   jurisdiction: Jurisdiction
   auditId: string | null
@@ -314,11 +314,11 @@ function pickString(data: unknown, keys: string[]) {
 const PAY_BUTTON_CLASS =
   'inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/85'
 
-/** Подсказка рядом с названием тарифа: главное отличие тарифов — число проектов. */
+/** Подсказка рядом с названием тарифа: главное отличие тарифов — число файлов. */
 const TIER_PAY_HINT: Record<PaidTier, string> = {
-  full: '1 проект',
-  choice: '3 проекта',
-  business: '10 проектов',
+  full: '1 файл',
+  choice: '3 файла',
+  business: '10 файлов',
 }
 
 function TierPayButton({
@@ -407,11 +407,11 @@ export function PremiumUpsell({
     if (generating.current || delivered.current) return 'failed'
     if (!claimReportGeneration()) return 'failed'
     const current = requestRef.current
-    if (!current.file) {
+    if (current.files.length === 0) {
       releaseReportGeneration()
       setState({
         kind: 'error',
-        message: 'Файл проекта не сохранился в браузере. Загрузите его заново — после оплаты отчёт запустится сам.',
+        message: 'Файлы проекта не сохранились в браузере. Загрузите их заново — после оплаты отчёт запустится сам.',
       })
       setOpen(true)
       return 'failed'
@@ -422,7 +422,12 @@ export function PremiumUpsell({
     setState({ kind: 'submitting' })
     setOpen(true)
     const body = new FormData()
-    body.append('file', current.file)
+    // Слот тарифа = файл: запуск списает столько проектов, сколько файлов прикреплено.
+    // Лимит тарифа: full — 1 файл, choice — 3, business — 10.
+    const tierMaxFiles = plan === 'business' ? 10 : plan === 'choice' ? 3 : 1
+    for (const item of current.files.slice(0, tierMaxFiles)) {
+      body.append('file', item)
+    }
     body.append('email', current.email)
     body.append('jurisdiction', current.jurisdiction)
     body.append('consent_accepted', 'true')
@@ -731,7 +736,7 @@ export function PremiumUpsell({
           </div>
           {credits != null && credits > 0 && (
             <p className="text-xs leading-relaxed text-muted-foreground">
-              На {request.email} осталось {credits} {projectsWord(credits)}. Следующий проект загрузите с этой же
+              На {request.email} осталось {credits} {filesWord(credits)}. Следующий файл загрузите с этой же
               почты — повторная оплата не нужна.
             </p>
           )}
@@ -783,7 +788,7 @@ export function PremiumUpsell({
           <div className="flex shrink-0 flex-col gap-3">
             {credits != null && credits > 0 && (
               <button type="button" onClick={() => void claimAndGenerate(tier)} className={PAY_BUTTON_CLASS}>
-                Открыть отчёт · осталось {credits} {projectsWord(credits)}
+                Открыть отчёт · осталось {credits} {filesWord(credits)}
               </button>
             )}
             <p className="max-w-xs text-[11px] leading-relaxed text-background/60">
@@ -798,12 +803,12 @@ export function PremiumUpsell({
               />
               <TierPayButton
                 tier="choice"
-                label={`Оплатить ${formatGrouped(TARIFF_RUB.choice)} ₽ за 3 проекта`}
+                label={`Оплатить ${formatGrouped(TARIFF_RUB.choice)} ₽ за 3 файла`}
                 onPay={() => openPayment('choice')}
               />
               <TierPayButton
                 tier="business"
-                label={`Оплатить ${formatGrouped(TARIFF_RUB.business)} ₽ за 10 проектов`}
+                label={`Оплатить ${formatGrouped(TARIFF_RUB.business)} ₽ за 10 файлов`}
                 onPay={() => openPayment('business')}
               />
               <ExampleReportLink tone="onDark">Пример полного отчёта</ExampleReportLink>
