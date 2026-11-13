@@ -73,8 +73,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  return 
-(
+  return (
     <html
       lang="ru"
       className={`${manrope.variable} ${jetbrains.variable} bg-background`}
