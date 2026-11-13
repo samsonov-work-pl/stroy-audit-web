@@ -39,7 +39,7 @@
 
 - [Главная](https://stroy-audit-web.vercel.app/): загрузка проекта
 - [Как это работает](https://stroy-audit-web.vercel.app/#how)
-- [Нормативы и пример отчёта](https://stroy-audit-web.vercel.app/#report)
+- [Пример отчёта](https://stroy-audit-web.vercel.app/#report)
 - [Тарифы](https://stroy-audit-web.vercel.app/#pricing)
 - [Контакты](https://stroy-audit-web.vercel.app/#contacts)
 - [Публичная оферта](https://stroy-audit-web.vercel.app/offer)
