@@ -55,14 +55,6 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
         url: '/icon.svg',
         type: 'image/svg+xml',
       },
@@ -81,7 +73,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  return (
+  return 
+(
     <html
       lang="ru"
       className={`${manrope.variable} ${jetbrains.variable} bg-background`}
