@@ -1,10 +1,18 @@
 import { ArrowUpRight, FileText } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import type { AuditTier } from '@/lib/audit-tier'
 
-export const EXAMPLE_REPORT_URL = process.env.NEXT_PUBLIC_EXAMPLE_REPORT_URL || '/reports/example-report.pdf'
-export const DEVELOPER_EXAMPLE_REPORT_URL =
-  process.env.NEXT_PUBLIC_DEVELOPER_EXAMPLE_REPORT_URL || '/reports/example-report-for-developer.pdf'
+export const EXAMPLE_REPORT_URL =
+  process.env.NEXT_PUBLIC_EXAMPLE_REPORT_URL || '/reports/02%20example-report-full-audit.pdf'
+
+/** Примеры готовых отчётов по тарифам (PDF открываются в новой вкладке). */
+export const TIER_EXAMPLE_REPORT_URLS: Record<AuditTier, string> = {
+  express: '/reports/01%20example-report-express.pdf',
+  full: '/reports/02%20example-report-full-audit.pdf',
+  choice: '/reports/03%20example-report-developer-choice.pdf',
+  business: '/reports/04%20example-report-profi-business.pdf',
+}
 
 export function ExampleReportLink({
   className,

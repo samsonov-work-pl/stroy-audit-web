@@ -2,10 +2,10 @@ import { ArrowUpRight, FileText } from 'lucide-react'
 
 import { Reveal } from '@/components/reveal'
 import { SectionHeading } from '@/components/how-it-works'
-import { DEVELOPER_EXAMPLE_REPORT_URL, EXAMPLE_REPORT_URL } from '@/components/example-report-link'
+import { EXAMPLE_REPORT_URL, TIER_EXAMPLE_REPORT_URLS } from '@/components/example-report-link'
 import { ExampleReportPages } from '@/components/example-report-pages'
 
-const fileName = EXAMPLE_REPORT_URL.split('/').pop()?.split('?')[0] || 'example-report.pdf'
+const fileName = decodeURIComponent(EXAMPLE_REPORT_URL.split('/').pop()?.split('?')[0] || 'example-report.pdf')
 
 export function AuditPreview() {
   return (
@@ -38,12 +38,12 @@ export function AuditPreview() {
                   <span className="sr-only">(откроется в новой вкладке)</span>
                 </a>
                 <a
-                  href={DEVELOPER_EXAMPLE_REPORT_URL}
+                  href={TIER_EXAMPLE_REPORT_URLS.business}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium transition-colors hover:bg-muted"
                 >
-                  Пример расширенного отчёта
+                  Пример отчёта «Профи / Бизнес»
                   <ArrowUpRight
                     className="size-3.5 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
                     aria-hidden="true"
