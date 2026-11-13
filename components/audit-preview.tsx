@@ -13,7 +13,7 @@ export function AuditPreview() {
       <div className="mx-auto flex max-w-6xl flex-col gap-14 px-5 py-24 md:py-32">
         <SectionHeading
           eyebrow="Пример отчёта"
-          title="Каждое замечание — со ссылкой на норму и листом чертежа"
+          title="Каждое замечание — со ссылкой на норму и лист чертежа"
         />
 
         <Reveal delay={100}>

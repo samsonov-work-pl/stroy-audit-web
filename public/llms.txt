@@ -24,8 +24,9 @@
 Цены списания:
 
 - Экспресс — 0 ₽ за один проект.
-- Полный аудит — 7 900 ₽ за один проект.
-- Для застройщика — 29 900 ₽ в месяц.
+- Полный аудит — 990 ₽ за один проект.
+- Выбор застройщика — 1 990 ₽ за три проекта.
+- Профи / Бизнес — 4 990 ₽ за десять проектов.
 
 Ориентир в белорусских рублях считается на странице по дневному курсу и не является суммой к оплате.
 
@@ -37,18 +38,18 @@
 
 ## Разделы сайта
 
-- [Главная](https://stroy-audit-web.vercel.app/): загрузка проекта
-- [Как это работает](https://stroy-audit-web.vercel.app/#how)
-- [Пример отчёта](https://stroy-audit-web.vercel.app/#report)
-- [Тарифы](https://stroy-audit-web.vercel.app/#pricing)
-- [Контакты](https://stroy-audit-web.vercel.app/#contacts)
-- [Публичная оферта](https://stroy-audit-web.vercel.app/offer)
-- [Политика конфиденциальности](https://stroy-audit-web.vercel.app/privacy)
-- [Условия возврата средств](https://stroy-audit-web.vercel.app/refund)
-- [Карта сайта](https://stroy-audit-web.vercel.app/sitemap.xml)
+- [Главная](https://stroyaudit-ai.com/): загрузка проекта
+- [Как это работает](https://stroyaudit-ai.com/#how)
+- [Пример отчёта](https://stroyaudit-ai.com/#report)
+- [Тарифы](https://stroyaudit-ai.com/#pricing)
+- [Контакты](https://stroyaudit-ai.com/#contacts)
+- [Публичная оферта](https://stroyaudit-ai.com/offer)
+- [Политика конфиденциальности](https://stroyaudit-ai.com/privacy)
+- [Условия возврата средств](https://stroyaudit-ai.com/refund)
+- [Карта сайта](https://stroyaudit-ai.com/sitemap.xml)
 
 ## Основные эндпоинты
 
 - `POST https://stroy-audit-api.onrender.com/api/audit/express` — экспресс-аудит загруженных файлов.
 - `POST https://stroy-audit-api.onrender.com/api/audit/deep` — полный аудит.
-- `GET https://stroy-audit-web.vercel.app/api/fx` — справочный курс рубля к BYN и KZT.
+- `GET https://stroyaudit-ai.com/api/fx` — справочный курс рубля к BYN и KZT.
