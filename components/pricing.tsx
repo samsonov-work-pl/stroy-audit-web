@@ -6,6 +6,7 @@ import { useRubRates } from '@/components/fx-rates'
 import { Reveal } from '@/components/reveal'
 import { SectionHeading } from '@/components/how-it-works'
 import { loadAuditChoice, saveAuditChoice, TIER_EVENT, TIER_META, type AuditTier } from '@/lib/audit-tier'
+import { ExampleReportLink, TIER_EXAMPLE_REPORT_URLS } from '@/components/example-report-link'
 import { TariffPrices } from '@/components/tariff-prices'
 import { TARIFF_RUB } from '@/lib/fx'
 import { cn } from '@/lib/utils'
@@ -153,6 +154,13 @@ export function Pricing() {
                         </li>
                       ))}
                     </ul>
+
+                    <ExampleReportLink
+                      href={TIER_EXAMPLE_REPORT_URLS[plan.tier]}
+                      className="w-full"
+                    >
+                      Пример отчёта
+                    </ExampleReportLink>
 
                     <a
                       href="#upload"
