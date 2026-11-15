@@ -57,7 +57,7 @@ import {
   type DeepReport,
 } from '@/lib/audit-storage'
 
-const AUDIT_API_BASE = 'https://stroy-audit-api.onrender.com/api/audit'
+const AUDIT_API_BASE = `${process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, '') || 'https://stroy-audit-api.onrender.com'}/api/audit`
 const EXPRESS_AUDIT_URL = `${AUDIT_API_BASE}/express`
 const DEEP_AUDIT_URL = `${AUDIT_API_BASE}/deep`
 const SUBMIT_COOLDOWN_MS = 60_000

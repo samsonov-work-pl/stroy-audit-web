@@ -7,7 +7,7 @@
  * как и остальные ключи stroyaudit:*.
  */
 
-const API_ORIGIN = 'https://stroy-audit-api.onrender.com'
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, '') || 'https://stroy-audit-api.onrender.com'
 const STORAGE_KEY = 'stroyaudit:server-awake-at'
 
 /** Пингуем не чаще раза в 10 минут: Render Free засыпает через 15 минут простоя. */
