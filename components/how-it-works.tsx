@@ -1,4 +1,5 @@
-import { FileUp, ClipboardCheck, ScanSearch, Wrench } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowUpRight, ClipboardCheck, FileUp, ScanSearch, Wrench } from 'lucide-react'
 import { Reveal } from '@/components/reveal'
 
 const steps = [
@@ -65,6 +66,15 @@ export function HowItWorks() {
             )
           })}
         </ol>
+        <p className="text-center">
+          <Link
+            href="/knowledge"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground"
+          >
+            Подробнее о проверке проектов — в Базе знаний
+            <ArrowUpRight className="size-3.5 text-muted-foreground" aria-hidden="true" />
+          </Link>
+        </p>
       </div>
     </section>
   )

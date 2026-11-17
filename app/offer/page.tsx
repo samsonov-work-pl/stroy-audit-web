@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function OfferPage() {
   return (
-    <LegalPage title="Публичная оферта" current="/offer" updated="2 ноября 2026 г.">
+    <LegalPage title="Публичная оферта" current="/offer" updated="18 ноября 2026 г.">
       <p>
         Настоящий документ — публичная оферта сервиса «СтройАудит.ai» (далее — оферта) заключить
         договор возмездного оказания услуг автоматического аудита проектной документации с любым
@@ -247,8 +247,8 @@ export default function OfferPage() {
         <li>
           <ExternalLink href={laws.rfOfficial}>Официальный интернет-портал правовой информации, pravo.gov.ru</ExternalLink>
           {': '}
-          <ExternalLink href={laws.rfCivil1}>ГК РФ, часть первая</ExternalLink>,{' '}
-          <ExternalLink href={laws.rfCivil2}>ГК РФ, часть вторая</ExternalLink>,{' '}
+          <ExternalLink href={laws.rfCivil1}>Гражданский кодекс Российской Федерации, часть первая</ExternalLink>,{' '}
+          <ExternalLink href={laws.rfCivil2}>Гражданский кодекс Российской Федерации, часть вторая</ExternalLink>,{' '}
           <ExternalLink href={laws.rfConsumer}>Закон РФ «О защите прав потребителей»</ExternalLink>.
         </li>
         <li>
@@ -256,8 +256,8 @@ export default function OfferPage() {
           <ExternalLink href={laws.byConsumer}>Закон Республики Беларусь «О защите прав потребителей»</ExternalLink> на pravo.by.
         </li>
         <li>
-          <ExternalLink href={laws.kzCivilGeneral}>ГК РК, Общая часть</ExternalLink>,{' '}
-          <ExternalLink href={laws.kzCivilSpecial}>ГК РК, Особенная часть</ExternalLink>,{' '}
+          <ExternalLink href={laws.kzCivilGeneral}>Гражданский кодекс Республики Казахстан, Общая часть</ExternalLink>,{' '}
+          <ExternalLink href={laws.kzCivilSpecial}>Гражданский кодекс Республики Казахстан, Особенная часть</ExternalLink>,{' '}
           <ExternalLink href={laws.kzConsumer}>Закон РК «О защите прав потребителей»</ExternalLink> в ИПС «Әділет».
         </li>
       </ul>

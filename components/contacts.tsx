@@ -39,7 +39,8 @@ export function Contacts() {
           </p>
           <p className="max-w-xl text-pretty text-sm leading-relaxed text-foreground">
             Автор и исполнитель сервиса — {LEGAL_NAME}. СтройАудит.ai автоматически проверяет проект
-            частного дома по нормам выбранной страны и готовит рекомендательный отчёт. Это не
+            частного дома, бани, гаража или другого объекта по нормам выбранной страны и готовит
+            рекомендательный отчёт. Это не
             государственная экспертиза. Почта:{' '}
             <a href={LEGAL_MAILTO} className="font-medium underline underline-offset-2">
               {LEGAL_EMAIL}
