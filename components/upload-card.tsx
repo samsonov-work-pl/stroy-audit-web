@@ -474,7 +474,7 @@ export function UploadCard() {
               </button>
             </p>
             <p className="text-[11px] text-muted-foreground/80">
-              Можно прикрепить до {MAX_FILES} файлов одного проекта (АР, конструктив, инженерные разделы).
+              Можно прикрепить до {MAX_FILES} файлов одного проекта (архитектуру, конструктив и инженерные разделы).
             </p>
           </div>
           <ul className="flex flex-wrap justify-center gap-1.5" aria-label="Поддерживаемые форматы">
