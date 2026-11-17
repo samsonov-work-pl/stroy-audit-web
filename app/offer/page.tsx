@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: 'Публичная оферта — СтройАудит.ai',
   description:
     'Публичная оферта сервиса автоматического аудита проектной документации СтройАудит.ai для заказчиков из России, Беларуси и Казахстана.',
+  alternates: { canonical: '/offer' },
 }
 
 export default function OfferPage() {

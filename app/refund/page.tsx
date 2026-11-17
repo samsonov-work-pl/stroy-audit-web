@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: 'Условия возврата средств — СтройАудит.ai',
   description:
     'Условия возврата оплаты за автоматический аудит проектной документации СтройАудит.ai для заказчиков из России, Беларуси и Казахстана.',
+  alternates: { canonical: '/refund' },
 }
 
 export default function RefundPage() {
