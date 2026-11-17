@@ -7,12 +7,9 @@ export const articleLinks: ArticleLink[] = [
   { href: '/about', label: 'О сервисе СтройАудит.ai' },
   {
     href: '/proverka-proekta-doma',
-    label: 'Проверка проекта дома до начала строительства',
+    label: 'Зачем проверять проект до начала стройки',
   },
-  { href: '/audit-smet', label: 'Аудит сметы на строительство дома' },
-  {
-    href: '/oshibki-v-proekte-doma',
-    label: 'Типовые ошибки в проекте частного дома',
-  },
-  { href: '/sostav-proekta-izhs', label: 'Состав проекта дома ИЖС' },
+  { href: '/audit-smet', label: 'Аудит сметы на строительство' },
+  { href: '/oshibki-v-proekte-doma', label: 'Типовые ошибки в проекте' },
+  { href: '/sostav-proekta-izhs', label: 'Из чего состоит проект частного дома' },
 ]
