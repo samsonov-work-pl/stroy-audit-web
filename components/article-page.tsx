@@ -15,12 +15,14 @@ export function ArticlePage({
   current,
   faq,
   children,
+  showOthers = true,
 }: {
   eyebrow?: string
   title: string
   current: string
   faq?: ArticleFaqItem[]
   children: ReactNode
+  showOthers?: boolean
 }) {
   const others = articleLinks.filter((doc) => doc.href !== current)
   const faqJsonLd = faq
@@ -70,23 +72,25 @@ export function ArticlePage({
               dangerouslySetInnerHTML={{ __html: faqJsonLd }}
             />
           ) : null}
-          <nav aria-label="Другие материалы" className="border-t border-border pt-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Читайте также
-            </p>
-            <ul className="mt-3 flex flex-col gap-2">
-              {others.map((doc) => (
-                <li key={doc.href}>
-                  <Link
-                    href={doc.href}
-                    className="text-sm font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground"
-                  >
-                    {doc.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
+          {showOthers ? (
+            <nav aria-label="Другие материалы" className="border-t border-border pt-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Читайте также
+              </p>
+              <ul className="mt-3 flex flex-col gap-2">
+                {others.map((doc) => (
+                  <li key={doc.href}>
+                    <Link
+                      href={doc.href}
+                      className="text-sm font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground"
+                    >
+                      {doc.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ) : null}
         </article>
       </main>
       <SiteFooter />

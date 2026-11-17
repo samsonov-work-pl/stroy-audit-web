@@ -9,6 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/offer`, lastModified, changeFrequency: 'monthly', priority: 0.4 },
     { url: `${SITE_URL}/privacy`, lastModified, changeFrequency: 'monthly', priority: 0.4 },
     { url: `${SITE_URL}/refund`, lastModified, changeFrequency: 'monthly', priority: 0.4 },
+    { url: `${SITE_URL}/knowledge`, lastModified, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${SITE_URL}/about`, lastModified, changeFrequency: 'monthly', priority: 0.4 },
     { url: `${SITE_URL}/proverka-proekta-doma`, lastModified, changeFrequency: 'monthly', priority: 0.4 },
     { url: `${SITE_URL}/audit-smet`, lastModified, changeFrequency: 'monthly', priority: 0.4 },

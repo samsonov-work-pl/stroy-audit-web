@@ -4,6 +4,7 @@ const links = [
   { href: '/#how', label: 'Как это работает' },
   { href: '/#report', label: 'Пример отчёта' },
   { href: '/#pricing', label: 'Тарифы' },
+  { href: '/knowledge', label: 'База знаний' },
   { href: '/#contacts', label: 'Контакты' },
 ]
 

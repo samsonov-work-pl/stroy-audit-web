@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Logo } from '@/components/site-header'
+import { articleLinks } from '@/lib/articles'
 import { LEGAL_NAME, legalDocuments } from '@/lib/legal'
 import { socialLinks } from '@/lib/social'
 
@@ -32,6 +33,20 @@ export function SiteFooter() {
               </ul>
             </nav>
           </div>
+          <nav aria-label="База знаний">
+            <ul className="flex flex-col gap-2">
+              {articleLinks.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-sm font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
           <nav aria-label="Юридические документы">
             <ul className="flex flex-col gap-2 sm:items-end">
               {legalDocuments.map((doc) => (
