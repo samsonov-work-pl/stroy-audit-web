@@ -15,5 +15,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/audit-smet`, lastModified, changeFrequency: 'monthly', priority: 0.4 },
     { url: `${SITE_URL}/oshibki-v-proekte-doma`, lastModified, changeFrequency: 'monthly', priority: 0.4 },
     { url: `${SITE_URL}/sostav-proekta-izhs`, lastModified, changeFrequency: 'monthly', priority: 0.4 },
+    { url: `${SITE_URL}/dostup-k-otchetu`, lastModified, changeFrequency: 'monthly', priority: 0.4 },
   ]
 }

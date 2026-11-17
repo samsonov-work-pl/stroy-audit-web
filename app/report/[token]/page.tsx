@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 
+import { getJurisdiction, type Jurisdiction } from '@/components/jurisdiction-provider'
 import { ReportSession } from '@/components/report-session'
 import { Logo } from '@/components/site-header'
 import { findActiveSession, readChatHistory } from '@/lib/report-session'
@@ -31,16 +33,31 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
   if (!session) {
     return (
       <Shell>
-        <p className="mx-auto max-w-3xl px-5 py-10 text-sm leading-relaxed text-muted-foreground">
-          Ссылка недействительна или её срок истёк. Отчёт и чат удаляются автоматически через 14 дней,
-          а по тарифу «Профи / Бизнес» — через 30 дней.
-          Копия отчёта остаётся в письме, которое было отправлено на ваш email.
-        </p>
+        <div className="mx-auto flex max-w-3xl flex-col gap-4 px-5 py-10">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Ссылка недействительна или её срок истёк. Отчёт и чат удаляются с сервера
+            автоматически: через 14 дней после проверки, а по тарифу «Профи / Бизнес» — через 30
+            дней. Поэтому мы советуем сохранять отчёт в PDF, пока ссылка активна.
+          </p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Если письмо со ссылкой потерялось — проверьте папку «Спам». Новую проверку можно
+            запустить в любой момент: экспресс-аудит бесплатный.
+          </p>
+          <Link
+            href="/"
+            className="w-fit rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+          >
+            Запустить новую проверку
+          </Link>
+        </div>
       </Shell>
     )
   }
 
   const daysLeft = Math.max(1, Math.ceil((session.expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
+  const standards = session.jurisdiction
+    ? getJurisdiction(session.jurisdiction as Jurisdiction).standards
+    : 'строительные нормы России, Беларуси или Казахстана'
 
   return (
     <Shell>
@@ -50,6 +67,7 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
         initialHistory={readChatHistory(session.chatHistory)}
         initialCount={session.messageCount}
         daysLeft={daysLeft}
+        standards={standards}
       />
     </Shell>
   )

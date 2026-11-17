@@ -1,10 +1,12 @@
 'use client'
 
 import { FormEvent, useState } from 'react'
+import Link from 'next/link'
 import { ArrowUp, Loader2 } from 'lucide-react'
 
 import { AuditReport } from '@/components/audit-report'
 import { MAX_CHAT_MESSAGES, type ChatTurn } from '@/lib/report-limits'
+import { openReportWindow, showReportInWindow } from '@/lib/report-pdf'
 
 export function ReportSession({
   token,
@@ -12,18 +14,25 @@ export function ReportSession({
   initialHistory,
   initialCount,
   daysLeft,
+  standards,
 }: {
   token: string
   report: string
   initialHistory: ChatTurn[]
   initialCount: number
   daysLeft: number
+  standards: string
 }) {
   const [history, setHistory] = useState(initialHistory)
   const [remaining, setRemaining] = useState(Math.max(0, MAX_CHAT_MESSAGES - initialCount))
   const [input, setInput] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function savePdf() {
+    const win = openReportWindow()
+    showReportInWindow(win, { markdown: report, standards })
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -62,9 +71,19 @@ export function ReportSession({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-5 py-8">
-      <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm leading-relaxed">
-        Ссылка на этот отчёт и чат активна ещё {daysLeft} дн. Исходные файлы на сервере не хранятся.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+        <p className="min-w-0 text-sm leading-relaxed">
+          Ссылка на этот отчёт и чат активна ещё {daysLeft} дн. Сохраните отчёт в PDF, пока ссылка
+          работает: после окончания срока он удаляется с сервера. Исходные файлы не хранятся.
+        </p>
+        <button
+          type="button"
+          onClick={savePdf}
+          className="shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+        >
+          Сохранить в PDF
+        </button>
+      </div>
       <article className="rounded-2xl border border-border bg-card px-4 py-5 sm:px-6">
         <AuditReport markdown={report} />
       </article>
@@ -124,6 +143,24 @@ export function ReportSession({
             </p>
           ) : null}
         </form>
+        {remaining <= 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card px-4 py-4 text-center">
+            <p className="text-sm leading-relaxed">
+              Лимит вопросов по этому отчёту исчерпан: ассистент отвечает только по отчёту, к
+              которому открыта ссылка. Сам отчёт и история чата доступны до конца срока ссылки.
+            </p>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Чтобы разобрать другой вопрос или новый проект, запустите новую проверку —
+              экспресс-аудит бесплатный.
+            </p>
+            <Link
+              href="/"
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              Запустить новую проверку
+            </Link>
+          </div>
+        ) : null}
       </section>
     </div>
   )

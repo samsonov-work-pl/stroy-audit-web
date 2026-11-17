@@ -12,4 +12,5 @@ export const articleLinks: ArticleLink[] = [
   { href: '/audit-smet', label: 'Аудит сметы на строительство' },
   { href: '/oshibki-v-proekte-doma', label: 'Типовые ошибки в проекте' },
   { href: '/sostav-proekta-izhs', label: 'Из чего состоит проект частного дома' },
+  { href: '/dostup-k-otchetu', label: 'Как открыть отчёт и чат' },
 ]
