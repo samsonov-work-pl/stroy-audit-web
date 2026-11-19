@@ -477,7 +477,7 @@ export function PremiumUpsell({
               report,
               email: current.email,
               jurisdiction: current.jurisdiction,
-              tier: spentPlan === 'business' ? 'business' : 'full',
+              tier: spentPlan === 'business' ? 'business' : spentPlan === 'choice' ? 'choice' : 'full',
               ...(accessToken ? { accessToken } : {}),
             }),
           })

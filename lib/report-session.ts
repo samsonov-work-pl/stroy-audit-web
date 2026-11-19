@@ -7,11 +7,12 @@ import {
   isSessionTier,
   MAX_CHAT_MESSAGES,
   sessionDays,
+  tierAllowsChatAttachments,
   type ChatTurn,
   type SessionTier,
 } from '@/lib/report-limits'
 
-export { isSessionTier, MAX_CHAT_MESSAGES, sessionDays }
+export { isSessionTier, MAX_CHAT_MESSAGES, sessionDays, tierAllowsChatAttachments }
 export type { ChatTurn, SessionTier }
 
 let tableReady: Promise<void> | null = null

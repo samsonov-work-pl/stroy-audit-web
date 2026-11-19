@@ -68,6 +68,7 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
         initialCount={session.messageCount}
         daysLeft={daysLeft}
         standards={standards}
+        canAttachFiles={session.tier === 'business' || session.tier === 'choice'}
       />
     </Shell>
   )
