@@ -120,7 +120,7 @@ export function showReportInWindow(
       <header><strong>СтройАудит.ai — инженерный аудит проекта</strong><span>${standards}<br>${date}</span></header>
       ${report}
       ${chatUrl ? chatInvite(chatUrl) : ''}
-      <footer>Отчёт сформирован автоматически и носит рекомендательный характер.</footer>
+      <footer>Отчёт сформирован искусственным интеллектом, носит рекомендательный характер и может содержать ошибки.</footer>
     </main>`,
   )
   target.focus()
