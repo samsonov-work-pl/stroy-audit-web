@@ -26,7 +26,7 @@ export function ConsentTerms({ className, id }: { className?: string; id?: strin
       <p>
         <span className="font-semibold text-foreground">Обработка данных.</span> Загружая файл,
         вы подтверждаете, что имеете право на его передачу, и даёте согласие на обработку
-        указанного email и содержимого документа в целях проведения аудита. Для пользователей из
+        указанного email и содержимого документа в целях проведения аудита. Содержимое файла обрабатывается транзитно и не используется для обучения моделей искусственного интеллекта. Для пользователей из
         России, Беларуси и Казахстана обработка ведётся по закону страны пользователя. Подробности
         — в{' '}
         <Link href="/privacy" className="font-medium text-foreground underline underline-offset-2">
@@ -86,7 +86,7 @@ export function ConsentDialog({ open, onAccept, onClose }: ConsentDialogProps) {
             <h2 id={titleId} className="text-base font-bold text-balance">
               Условия обработки данных и дисклеймер
             </h2>
-            <p className="text-xs text-muted-foreground">Редакция от 21.10.2026</p>
+            <p className="text-xs text-muted-foreground">Редакция от 23.11.2026</p>
           </div>
           <button
             type="button"

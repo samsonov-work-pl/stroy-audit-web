@@ -73,7 +73,7 @@ function parseRetryAfterMs(header: string | null) {
 const MAX_SIZE_MB = 50
 const MAX_FILES = 10
 const REQUEST_TIMEOUT_MS = 300_000
-const CONSENT_VERSION = '2026-10-21'
+const CONSENT_VERSION = '2026-11-23'
 
 type Status = 'idle' | 'submitting' | 'success' | 'error'
 
@@ -536,9 +536,9 @@ export function UploadCard() {
         )}
 
         <p className="text-center text-xs text-muted-foreground">
-          Исходные файлы удаляются сразу после обработки и не хранятся на сервере. Сервис не
-          использует файлы cookie и всплывающие окна согласия; статистика посещений —
-          обезличенная.
+          Исходные файлы удаляются сразу после обработки, не хранятся на сервере и не используются
+          для обучения моделей искусственного интеллекта. Сервис не использует файлы cookie и
+          всплывающие окна согласия; статистика посещений — обезличенная.
         </p>
 
         <div className="flex flex-col gap-2">
